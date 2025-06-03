@@ -26,6 +26,11 @@ export interface IDatabase {
   disconnect(): Promise<void>;
 
   /**
+   * Initialize database schema (tables, indexes, etc.)
+   */
+  initializeSchema(includeSampleData?: boolean): Promise<void>;
+
+  /**
    * Get symbols with optional filtering and pagination
    */
   getSymbols(options?: QueryOptions): Promise<QueryResult<Symbol[]>>;
@@ -74,7 +79,7 @@ export interface IDatabase {
  * PostgreSQL database implementation
  */
 export class PostgreSQLDatabase implements IDatabase {
-  private pool: Pool | null = null;
+  public pool: Pool | null = null; // Made public for SchemaManager access
   private readonly connectionString: string;
 
   constructor(connectionString?: string) {
@@ -107,6 +112,21 @@ export class PostgreSQLDatabase implements IDatabase {
     if (this.pool) {
       await this.pool.end();
       this.pool = null;
+    }
+  }
+
+  async initializeSchema(includeSampleData = false): Promise<void> {
+    // Import SchemaManager here to avoid circular dependency
+    const { SchemaManager } = await import("./SchemaManager.js");
+    const schemaManager = new SchemaManager(this);
+
+    // Check if schema already exists
+    const schemaExists = await schemaManager.checkSchemaExists();
+
+    if (!schemaExists) {
+      await schemaManager.initializeSchema(includeSampleData);
+    } else {
+      console.error("✓ Database schema already exists");
     }
   }
 

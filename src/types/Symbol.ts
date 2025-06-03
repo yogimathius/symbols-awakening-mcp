@@ -8,20 +8,26 @@ export interface Symbol {
   /** Human-readable name of the symbol */
   name: string;
 
-  /** Category classification of the symbol */
-  category: string;
+  /** Category classification of the symbol (nullable) */
+  category: string | null;
 
-  /** Detailed description of the symbol's meaning */
-  description: string;
+  /** Detailed description of the symbol's meaning (nullable) */
+  description: string | null;
 
   /** Various interpretations of the symbol across different contexts */
-  interpretations: Record<string, string>;
+  interpretations: Record<string, unknown>;
 
   /** Array of related symbol IDs */
   related_symbols: string[];
 
   /** Additional properties and metadata */
   properties: Record<string, unknown>;
+
+  /** Creation timestamp */
+  created_at: Date;
+
+  /** Last update timestamp */
+  updated_at: Date;
 }
 
 /**
@@ -34,14 +40,20 @@ export interface SymbolSet {
   /** Human-readable name of the symbol set */
   name: string;
 
-  /** Category classification of the symbol set */
-  category: string;
+  /** Category classification of the symbol set (nullable) */
+  category: string | null;
 
-  /** Description of the symbol set's purpose and content */
-  description: string;
+  /** Description of the symbol set's purpose and content (nullable) */
+  description: string | null;
 
   /** Map of symbol IDs to their roles/weights in this set */
   symbols: Record<string, unknown>;
+
+  /** Creation timestamp */
+  created_at: Date;
+
+  /** Last update timestamp */
+  updated_at: Date;
 }
 
 /**

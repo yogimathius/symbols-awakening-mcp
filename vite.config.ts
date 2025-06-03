@@ -4,35 +4,42 @@ import { resolve } from "path";
 export default defineConfig({
   // Build configuration for Node.js CLI
   build: {
-    target: "node18",
-    outDir: "dist",
-    emptyOutDir: true,
-    sourcemap: true,
+    lib: {
+      entry: resolve(__dirname, "src/index.ts"),
+      name: "symbols-awakening-mcp",
+      fileName: "index",
+      formats: ["es"],
+    },
     rollupOptions: {
-      input: resolve(__dirname, "src/index.ts"),
       external: [
         // Node.js built-ins
         "fs",
         "path",
         "url",
-        "util",
-        "events",
-        "stream",
+        "child_process",
         "crypto",
         "os",
-        "child_process",
-        "worker_threads",
-        // External dependencies that should not be bundled
-        "pg",
-        "@modelcontextprotocol/sdk",
-        "zod",
+        "util",
+        "stream",
+        "events",
+        "buffer",
+        "querystring",
+        "net",
+        "tls",
+        "http",
+        "https",
+        "zlib",
+        // Prisma client - keep it external to avoid bundling issues
+        "@prisma/client",
+        ".prisma/client",
+        ".prisma/client/index-browser",
       ],
       output: {
-        format: "es",
-        entryFileNames: "index.js",
         banner: "#!/usr/bin/env node",
       },
     },
+    target: "node18",
+    minify: false,
   },
 
   // Development

@@ -118,3 +118,4 @@ yarn.lock
 # Local development
 .local/
 .cache/ 
+/src/generated/prisma

@@ -5,7 +5,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { PostgreSQLDatabase } from "@/database/Database.js";
+import { PrismaDatabase } from "@/database/PrismaDatabase.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
 
 // Version info
@@ -91,13 +91,12 @@ async function main(): Promise<void> {
       }
     );
 
-    // Initialize database
-    const database = new PostgreSQLDatabase();
+    // Initialize database with Prisma
+    const database = new PrismaDatabase();
 
     // Try to connect to database (graceful degradation if not available)
     try {
       await database.connect();
-      console.error(`✓ Database connected successfully`);
     } catch (error) {
       console.error(
         `⚠ Database connection failed: ${(error as Error).message}`
@@ -144,7 +143,8 @@ async function main(): Promise<void> {
                     "get_symbol_sets",
                     "search_symbol_sets",
                   ],
-                  message: "Symbols Awakening MCP Server is operational",
+                  message:
+                    "Symbols Awakening MCP Server is operational with Prisma",
                 },
                 null,
                 2
