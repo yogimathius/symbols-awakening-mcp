@@ -5,6 +5,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { PostgreSQLDatabase } from "@/database/Database.js";
+import { SymbolsService } from "@/mcp/SymbolsService.js";
 
 // Version info
 const VERSION = "0.1.0";
@@ -27,6 +29,14 @@ Usage:
 Environment Variables:
   DATABASE_URL               PostgreSQL connection string
   NODE_ENV                  Environment (development, production, test)
+
+MCP Tools Available:
+  • get_symbols              List symbols with optional limit
+  • search_symbols           Search symbols by text query
+  • filter_by_category       Filter symbols by category
+  • get_categories          Get all available categories
+  • get_symbol_sets         List symbol sets with optional limit
+  • search_symbol_sets      Search symbol sets by text query
 
 For more information, visit: https://github.com/your-username/symbols-awakening-mcp
 `);
@@ -81,12 +91,38 @@ async function main(): Promise<void> {
       }
     );
 
-    // Add a simple test tool for now
+    // Initialize database
+    const database = new PostgreSQLDatabase();
+
+    // Try to connect to database (graceful degradation if not available)
+    try {
+      await database.connect();
+      console.error(`✓ Database connected successfully`);
+    } catch (error) {
+      console.error(
+        `⚠ Database connection failed: ${(error as Error).message}`
+      );
+      console.error(
+        `⚠ MCP server will start but tools may not function without database`
+      );
+    }
+
+    // Set up symbols service with all MCP tools
+    const symbolsService = new SymbolsService(server, database);
+    symbolsService.registerTools();
+
+    // Add server info tool for debugging
     server.tool(
       "get_server_info",
       "Get information about the symbols ontology server",
-      {},
+      {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
       async () => {
+        const healthCheck = await database.healthCheck();
+
         return {
           content: [
             {
@@ -96,7 +132,18 @@ async function main(): Promise<void> {
                   name: SERVER_NAME,
                   version: VERSION,
                   status: "running",
-                  capabilities: ["symbols", "ontology", "search"],
+                  database_status: healthCheck.success
+                    ? "connected"
+                    : "disconnected",
+                  database_error: healthCheck.error?.message,
+                  capabilities: [
+                    "get_symbols",
+                    "search_symbols",
+                    "filter_by_category",
+                    "get_categories",
+                    "get_symbol_sets",
+                    "search_symbol_sets",
+                  ],
                   message: "Symbols Awakening MCP Server is operational",
                 },
                 null,
@@ -112,6 +159,11 @@ async function main(): Promise<void> {
     const transport = new StdioServerTransport();
     await server.connect(transport);
 
+    console.error(`✓ MCP server started successfully on stdio transport`);
+    console.error(
+      `✓ Available tools: get_symbols, search_symbols, filter_by_category, get_categories, get_symbol_sets, search_symbol_sets`
+    );
+
     // Server is now running and will handle MCP protocol messages
   } catch (error) {
     console.error("Failed to start MCP server:", error);
@@ -123,8 +175,14 @@ async function main(): Promise<void> {
  * Handle graceful shutdown
  */
 function setupShutdownHandlers(): void {
-  const shutdown = (signal: string): void => {
-    console.log(`\nReceived ${signal}, shutting down gracefully...`);
+  const shutdown = async (signal: string): Promise<void> => {
+    console.error(`\nReceived ${signal}, shutting down gracefully...`);
+
+    // Here we would close database connections, but since our database
+    // is created locally in main(), we'll rely on process termination
+    // for cleanup. In a larger application, we'd pass the database
+    // instance to this handler for proper cleanup.
+
     process.exit(0);
   };
 
