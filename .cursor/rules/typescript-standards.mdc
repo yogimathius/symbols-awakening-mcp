@@ -1,0 +1,63 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TypeScript Standards & Configuration
+
+## Strict Mode Configuration
+
+[tsconfig.json](mdc:tsconfig.json) enforces maximum type safety:
+
+### Enabled Strict Options
+- `strict: true` - All strict checks enabled
+- `noImplicitAny: true` - No `any` types allowed
+- `strictNullChecks: true` - Explicit null/undefined handling
+- `exactOptionalPropertyTypes: true` - Precise optional property typing
+- `noUncheckedIndexedAccess: true` - Safe array/object access
+- `noUnusedLocals: true` - No unused variables
+- `noUnusedParameters: true` - No unused function parameters
+
+## Type System Architecture
+
+### Core Domain Types
+- **Symbol Interface**: [src/types/Symbol.ts](mdc:src/types/Symbol.ts) - Main ontology entity
+- **QueryResult<T>**: Generic wrapper for database operations
+- **QueryOptions**: Standardized query parameters (limit, offset, query, category)
+
+### Type Pattern Requirements
+1. **Interface First**: Define interfaces before implementation
+2. **Zod Validation**: Runtime validation for external inputs
+3. **Generic Types**: Use generics for reusable patterns
+4. **Explicit Returns**: Always specify function return types
+
+### Import Organization
+```typescript
+// 1. Node.js built-ins
+import { readFile } from 'fs/promises';
+
+// 2. External libraries
+import { z } from 'zod';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+// 3. Internal imports
+import type { Symbol } from '@/types/Symbol.js';
+```
+
+## Error Handling Pattern
+
+Use explicit error handling, never silent failures:
+```typescript
+async function riskyOperation(): Promise<QueryResult<Data>> {
+  try {
+    const result = await dangerousCall();
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error as Error };
+  }
+}
+```
+
+## Path Mapping
+
+`baseUrl: "."` with `"@/*": ["src/*"]` alias configured for clean imports.

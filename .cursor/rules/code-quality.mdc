@@ -1,0 +1,82 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Code Quality & Standards
+
+## ESLint Configuration
+
+### Key Rules Enforced
+- **Import Organization**: External before internal imports
+- **No Unused Variables**: Catch dead code early
+- **Prefer Const**: Immutability by default
+- **No Console**: Use proper logging in production code
+
+### Lint Commands
+```bash
+pnpm lint           # Check for violations
+pnpm lint:fix       # Auto-fix what's possible
+```
+
+## File Naming Conventions
+
+### Directory Structure
+```
+src/
+├── types/           # TypeScript interfaces and types
+├── database/        # Database layer (planned)
+├── mcp/            # MCP tool implementations (planned)
+└── __tests__/      # Test utilities and setup
+```
+
+### File Naming Patterns
+- **Interfaces**: `PascalCase.ts` (e.g., `Symbol.ts`)
+- **Implementations**: `camelCase.ts` (e.g., `symbolService.ts`)
+- **Tests**: `*.test.ts` alongside source files
+- **Constants**: `UPPER_SNAKE_CASE` for module-level constants
+
+## Documentation Standards
+
+### JSDoc Requirements
+All public functions must have:
+```typescript
+/**
+ * Brief description of what the function does
+ * @param paramName - Description of parameter
+ * @returns Description of return value
+ * @throws {ErrorType} When this error occurs
+ */
+```
+
+### README Patterns
+- **Status Section**: Track completed/in-progress/planned features
+- **Usage Examples**: Show actual CLI commands
+- **API Reference**: Document all public interfaces
+- **Configuration**: Environment variables and setup
+
+## Import Patterns
+
+### Required Import Order
+1. Node.js built-ins
+2. External dependencies
+3. Internal modules (using `@/` alias)
+
+### ESM Compatibility
+Always use `.js` extensions in imports for proper ESM resolution:
+```typescript
+import type { Symbol } from '@/types/Symbol.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+```
+
+## Code Organization
+
+### Single Responsibility
+- One interface per file
+- One class per file
+- Related utilities can share a file if under 100 lines
+
+### Export Patterns
+- Use named exports by default
+- Default exports only for main entry points
+- Export types and interfaces separately from implementations

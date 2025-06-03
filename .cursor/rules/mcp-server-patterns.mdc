@@ -1,0 +1,98 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# MCP Server Development Patterns
+
+## Server Configuration
+
+### Core Setup Pattern
+See [src/index.ts](mdc:src/index.ts) for the established pattern:
+
+```typescript
+const server = new McpServer(
+  {
+    name: "symbols-awakening-mcp",
+    version: VERSION,
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+```
+
+### Transport Configuration
+**ALWAYS use StdioServerTransport** for CLI compatibility:
+```typescript
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+### CLI Integration Requirements
+- **Shebang**: Build must inject `#!/usr/bin/env node` (configured in [vite.config.ts](mdc:vite.config.ts))
+- **Binary Field**: [package.json](mdc:package.json) `bin` field must point to `./dist/index.js`
+- **NPX Compatibility**: Must work with `npx -y symbols-awakening-mcp`
+
+## Tool Registration Pattern
+
+### Standard Tool Structure
+```typescript
+server.tool(
+  "tool_name",           // kebab-case naming
+  "Brief description",   // Human-readable description
+  {                      // Input schema (Zod or JSON Schema)
+    limit: {
+      type: "number",
+      description: "Maximum results",
+      default: 50
+    }
+  },
+  async (args) => {      // Implementation function
+    // Validate inputs
+    // Business logic
+    // Return MCP response format
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result, null, 2)
+        }
+      ]
+    };
+  }
+);
+```
+
+### Required Tools Implementation
+All 6 core tools must follow this exact naming:
+1. `get_symbols` - List symbols with optional limit
+2. `search_symbols` - Text search across symbols
+3. `filter_by_category` - Category-based filtering
+4. `get_categories` - List all categories
+5. `get_symbol_sets` - List symbol sets
+6. `search_symbol_sets` - Text search across symbol sets
+
+## Error Handling in Tools
+
+Always wrap tool implementations with try-catch:
+```typescript
+server.tool("tool_name", "Description", schema, async (args) => {
+  try {
+    const result = await businessLogic(args);
+    return successResponse(result);
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+```
+
+## Development vs Production
+
+- **Development**: Use `tsx src/index.ts` for hot reload
+- **Production**: Build to `dist/index.js` with Vite
+- **Testing**: Mock MCP server in tests, don't test transport layer

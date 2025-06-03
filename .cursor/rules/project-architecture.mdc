@@ -1,0 +1,40 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Architecture & Technical Stack
+
+## Core Architecture
+
+This is a TypeScript MCP (Model Context Protocol) server built for CLI usage via `npx`. The architecture follows strict TDD principles with comprehensive type safety.
+
+### Key Technical Decisions
+
+- **Build System**: Vite configured for Node.js CLI binary generation in [vite.config.ts](mdc:vite.config.ts)
+- **Testing**: Vitest with globals enabled, configured in [vitest.config.ts](mdc:vitest.config.ts)
+- **TypeScript**: Strict mode with all safety features enabled in [tsconfig.json](mdc:tsconfig.json)
+- **Transport**: Stdio transport only (not SSE) for CLI compatibility
+- **Package Distribution**: NPX-ready binary with shebang injection during build
+
+### Entry Points & Core Files
+
+- **CLI Entry**: [src/index.ts](mdc:src/index.ts) - Main executable with MCP server setup
+- **Type System**: [src/types/Symbol.ts](mdc:src/types/Symbol.ts) - Core ontology interfaces
+- **Test Setup**: [src/__tests__/setup.ts](mdc:src/__tests__/setup.ts) - Vitest configuration
+- **Dev Rules**: [DEVELOPMENT_RULES.md](mdc:DEVELOPMENT_RULES.md) - Mandatory development practices
+
+### Build Output
+
+The build process creates `dist/index.js` with:
+- Proper shebang (`#!/usr/bin/env node`) 
+- External dependencies (pg, @modelcontextprotocol/sdk, zod)
+- ESM format for Node.js 18+
+
+### Package Configuration
+
+[package.json](mdc:package.json) is configured for:
+- NPX distribution with `bin` field
+- Vite build process
+- Vitest testing with coverage
+- Strict ESLint rules
