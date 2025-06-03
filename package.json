@@ -1,0 +1,72 @@
+{
+  "name": "symbols-awakening-mcp",
+  "version": "0.1.0",
+  "description": "A symbolic reasoning engine that serves as an MCP server for symbolic ontology operations",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "symbols-awakening-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rimraf dist",
+    "prepublishOnly": "pnpm run clean && pnpm run build",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "symbols",
+    "ontology",
+    "ai",
+    "claude",
+    "cursor"
+  ],
+  "author": "Your Name",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "pg": "^8.11.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^8.57.1",
+    "@types/node": "^20.9.0",
+    "@types/pg": "^8.10.7",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@vitest/ui": "^1.0.0",
+    "eslint": "^8.54.0",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.2",
+    "vite": "^5.0.0",
+    "vite-node": "^1.0.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/symbols-awakening-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/symbols-awakening-mcp/issues"
+  },
+  "homepage": "https://github.com/your-username/symbols-awakening-mcp#readme"
+}
