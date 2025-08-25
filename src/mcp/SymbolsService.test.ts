@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SymbolsService, TOOL_SCHEMAS } from "./SymbolsService.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { IDatabase } from "@/database/Database.js";
 import type { Symbol, SymbolSet } from "@/types/Symbol.js";
+
+import { SymbolsService, TOOL_SCHEMAS } from "./SymbolsService.js";
 
 // Mock MCP server
 const mockServer = {
@@ -10,6 +12,7 @@ const mockServer = {
 
 // Mock database
 const mockDatabase: IDatabase = {
+  initializeSchema: vi.fn(),
   connect: vi.fn(),
   disconnect: vi.fn(),
   getSymbols: vi.fn(),
@@ -30,61 +33,51 @@ describe("SymbolsService", () => {
   });
 
   describe("Tool Schemas", () => {
-    it("should have valid schema for get_symbols", () => {
+    it("should have valid Zod schema for get_symbols", () => {
       const schema = TOOL_SCHEMAS.get_symbols;
 
-      expect(schema.type).toBe("object");
-      expect(schema.properties.limit).toBeDefined();
-      expect(schema.properties.limit.type).toBe("number");
-      expect(schema.properties.limit.default).toBe(50);
-      expect(schema.additionalProperties).toBe(false);
+      expect(schema.limit).toBeDefined();
+      expect(typeof schema.limit).toBe("object");
     });
 
-    it("should have valid schema for search_symbols", () => {
+    it("should have valid Zod schema for search_symbols", () => {
       const schema = TOOL_SCHEMAS.search_symbols;
 
-      expect(schema.type).toBe("object");
-      expect(schema.properties.query).toBeDefined();
-      expect(schema.properties.query.type).toBe("string");
-      expect(schema.required).toContain("query");
-      expect(schema.additionalProperties).toBe(false);
+      expect(schema.query).toBeDefined();
+      expect(schema.limit).toBeDefined();
+      expect(typeof schema.query).toBe("object");
+      expect(typeof schema.limit).toBe("object");
     });
 
-    it("should have valid schema for filter_by_category", () => {
+    it("should have valid Zod schema for filter_by_category", () => {
       const schema = TOOL_SCHEMAS.filter_by_category;
 
-      expect(schema.type).toBe("object");
-      expect(schema.properties.category).toBeDefined();
-      expect(schema.properties.category.type).toBe("string");
-      expect(schema.required).toContain("category");
-      expect(schema.additionalProperties).toBe(false);
+      expect(schema.category).toBeDefined();
+      expect(schema.limit).toBeDefined();
+      expect(typeof schema.category).toBe("object");
+      expect(typeof schema.limit).toBe("object");
     });
 
-    it("should have valid schema for get_categories", () => {
+    it("should have valid Zod schema for get_categories", () => {
       const schema = TOOL_SCHEMAS.get_categories;
 
-      expect(schema.type).toBe("object");
-      expect(schema.properties).toEqual({});
-      expect(schema.additionalProperties).toBe(false);
+      expect(typeof schema).toBe("object");
     });
 
-    it("should have valid schema for get_symbol_sets", () => {
+    it("should have valid Zod schema for get_symbol_sets", () => {
       const schema = TOOL_SCHEMAS.get_symbol_sets;
 
-      expect(schema.type).toBe("object");
-      expect(schema.properties.limit).toBeDefined();
-      expect(schema.properties.limit.type).toBe("number");
-      expect(schema.additionalProperties).toBe(false);
+      expect(schema.limit).toBeDefined();
+      expect(typeof schema.limit).toBe("object");
     });
 
-    it("should have valid schema for search_symbol_sets", () => {
+    it("should have valid Zod schema for search_symbol_sets", () => {
       const schema = TOOL_SCHEMAS.search_symbol_sets;
 
-      expect(schema.type).toBe("object");
-      expect(schema.properties.query).toBeDefined();
-      expect(schema.properties.query.type).toBe("string");
-      expect(schema.required).toContain("query");
-      expect(schema.additionalProperties).toBe(false);
+      expect(schema.query).toBeDefined();
+      expect(schema.limit).toBeDefined();
+      expect(typeof schema.query).toBe("object");
+      expect(typeof schema.limit).toBe("object");
     });
   });
 
@@ -136,6 +129,8 @@ describe("SymbolsService", () => {
   });
 
   describe("Tool Implementations", () => {
+    const fixedDate = new Date("2025-08-25T05:38:43.884Z");
+
     const mockSymbol: Symbol = {
       id: "test-symbol-1",
       name: "Test Symbol",
@@ -144,6 +139,8 @@ describe("SymbolsService", () => {
       interpretations: { test: "test interpretation" },
       related_symbols: ["test-symbol-2"],
       properties: { test: true },
+      created_at: fixedDate,
+      updated_at: fixedDate,
     };
 
     const mockSymbolSet: SymbolSet = {
@@ -152,6 +149,21 @@ describe("SymbolsService", () => {
       category: "test",
       description: "A test symbol set",
       symbols: { "test-symbol-1": { weight: 1.0 } },
+      created_at: fixedDate,
+      updated_at: fixedDate,
+    };
+
+    // Serialized versions for comparison (dates become ISO strings after JSON.stringify/parse)
+    const expectedSymbol = {
+      ...mockSymbol,
+      created_at: fixedDate.toISOString(),
+      updated_at: fixedDate.toISOString(),
+    };
+
+    const expectedSymbolSet = {
+      ...mockSymbolSet,
+      created_at: fixedDate.toISOString(),
+      updated_at: fixedDate.toISOString(),
     };
 
     beforeEach(() => {
@@ -171,10 +183,13 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({ limit: 10 });
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.symbols).toEqual([mockSymbol]);
+        expect(responseData.symbols).toEqual([expectedSymbol]);
         expect(responseData.count).toBe(1);
         expect(responseData.message).toContain("Retrieved 1 symbols");
-        expect(mockDatabase.getSymbols).toHaveBeenCalledWith({ limit: 10 });
+        expect(mockDatabase.getSymbols).toHaveBeenCalledWith({
+          limit: 10,
+          offset: 0,
+        });
       });
 
       it("should handle database errors", async () => {
@@ -189,7 +204,9 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({});
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.error).toBe("Failed to retrieve symbols");
+        expect(responseData.error).toBe(
+          "Internal error while retrieving symbols"
+        );
         expect(responseData.details).toBe("Database connection failed");
       });
 
@@ -204,7 +221,10 @@ describe("SymbolsService", () => {
         )?.[3];
         await toolHandler?.({});
 
-        expect(mockDatabase.getSymbols).toHaveBeenCalledWith({ limit: 50 });
+        expect(mockDatabase.getSymbols).toHaveBeenCalledWith({
+          limit: 50,
+          offset: 0,
+        });
       });
     });
 
@@ -221,7 +241,7 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({ query: "test", limit: 10 });
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.symbols).toEqual([mockSymbol]);
+        expect(responseData.symbols).toEqual([expectedSymbol]);
         expect(responseData.count).toBe(1);
         expect(responseData.query).toBe("test");
         expect(responseData.message).toContain(
@@ -229,6 +249,7 @@ describe("SymbolsService", () => {
         );
         expect(mockDatabase.searchSymbols).toHaveBeenCalledWith("test", {
           limit: 10,
+          offset: 0,
         });
       });
 
@@ -254,7 +275,9 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({ query: "test" });
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.error).toBe("Failed to search symbols");
+        expect(responseData.error).toBe(
+          "Internal error while searching symbols"
+        );
         expect(responseData.details).toBe("Search failed");
       });
     });
@@ -272,7 +295,7 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({ category: "test", limit: 10 });
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.symbols).toEqual([mockSymbol]);
+        expect(responseData.symbols).toEqual([expectedSymbol]);
         expect(responseData.count).toBe(1);
         expect(responseData.category).toBe("test");
         expect(responseData.message).toContain(
@@ -280,6 +303,7 @@ describe("SymbolsService", () => {
         );
         expect(mockDatabase.filterByCategory).toHaveBeenCalledWith("test", {
           limit: 10,
+          offset: 0,
         });
       });
 
@@ -324,7 +348,9 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({});
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.error).toBe("Failed to retrieve categories");
+        expect(responseData.error).toBe(
+          "Internal error while retrieving categories"
+        );
         expect(responseData.details).toBe("Categories fetch failed");
       });
     });
@@ -342,10 +368,13 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({ limit: 10 });
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.symbol_sets).toEqual([mockSymbolSet]);
+        expect(responseData.symbol_sets).toEqual([expectedSymbolSet]);
         expect(responseData.count).toBe(1);
         expect(responseData.message).toContain("Retrieved 1 symbol sets");
-        expect(mockDatabase.getSymbolSets).toHaveBeenCalledWith({ limit: 10 });
+        expect(mockDatabase.getSymbolSets).toHaveBeenCalledWith({
+          limit: 10,
+          offset: 0,
+        });
       });
     });
 
@@ -362,7 +391,7 @@ describe("SymbolsService", () => {
         const result = await toolHandler?.({ query: "test", limit: 10 });
 
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.symbol_sets).toEqual([mockSymbolSet]);
+        expect(responseData.symbol_sets).toEqual([expectedSymbolSet]);
         expect(responseData.count).toBe(1);
         expect(responseData.query).toBe("test");
         expect(responseData.message).toContain(
@@ -370,6 +399,7 @@ describe("SymbolsService", () => {
         );
         expect(mockDatabase.searchSymbolSets).toHaveBeenCalledWith("test", {
           limit: 10,
+          offset: 0,
         });
       });
 

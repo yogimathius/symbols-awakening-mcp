@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import type { Symbol, SymbolSet, QueryOptions } from "./Symbol.js";
+import { describe, expect, it } from "vitest";
+
+import type { QueryOptions, Symbol, SymbolSet } from "./Symbol.js";
 
 describe("Symbol Types", () => {
   describe("Symbol interface", () => {
@@ -18,6 +19,8 @@ describe("Symbol Types", () => {
           origin: "unit-test",
           importance: "high",
         },
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       // Verify the symbol has all required properties
@@ -28,6 +31,8 @@ describe("Symbol Types", () => {
       expect(typeof symbol.interpretations).toBe("object");
       expect(Array.isArray(symbol.related_symbols)).toBe(true);
       expect(typeof symbol.properties).toBe("object");
+      expect(symbol.created_at).toBeInstanceOf(Date);
+      expect(symbol.updated_at).toBeInstanceOf(Date);
     });
   });
 
@@ -42,6 +47,8 @@ describe("Symbol Types", () => {
           "test-symbol-1": { weight: 1.0, role: "primary" },
           "validation-symbol": { weight: 0.8, role: "secondary" },
         },
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       expect(symbolSet.id).toBe("test-set-1");
@@ -49,6 +56,8 @@ describe("Symbol Types", () => {
       expect(symbolSet.category).toBe("testing");
       expect(symbolSet.description).toBeTruthy();
       expect(typeof symbolSet.symbols).toBe("object");
+      expect(symbolSet.created_at).toBeInstanceOf(Date);
+      expect(symbolSet.updated_at).toBeInstanceOf(Date);
     });
   });
 

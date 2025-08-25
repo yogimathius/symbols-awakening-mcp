@@ -1,47 +1,35 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { PostgreSQLDatabase, type IDatabase } from "./Database.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { Symbol, SymbolSet } from "@/types/Symbol.js";
 
-// Mock pg module
-vi.mock("pg", () => ({
-  Pool: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue({
-      query: vi.fn(),
-      release: vi.fn(),
-    }),
-    end: vi.fn().mockResolvedValue(undefined),
-  })),
+import { type IDatabase, PrismaDatabase } from "./Database.js";
+
+// Mock Prisma Client
+const mockPrismaClient = {
+  $connect: vi.fn(),
+  $disconnect: vi.fn(),
+  $queryRaw: vi.fn(),
+  symbol: {
+    findMany: vi.fn(),
+  },
+  symbolSet: {
+    findMany: vi.fn(),
+  },
+};
+
+vi.mock("@prisma/client", () => ({
+  PrismaClient: vi.fn(() => mockPrismaClient),
 }));
 
 describe("Database Layer", () => {
   let database: IDatabase;
-  let mockPool: any;
-  let mockClient: any;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks();
 
-    // Set up mock client
-    mockClient = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
-
-    // Set up mock pool
-    mockPool = {
-      connect: vi.fn().mockResolvedValue(mockClient),
-      end: vi.fn().mockResolvedValue(undefined),
-    };
-
-    // Mock Pool constructor
-    const { Pool } = await import("pg");
-    vi.mocked(Pool).mockImplementation(() => mockPool);
-
     // Create database instance
-    database = new PostgreSQLDatabase(
-      "postgres://test:test@localhost:5432/test_db"
-    );
+    database = new PrismaDatabase();
   });
 
   afterEach(async () => {
@@ -51,14 +39,17 @@ describe("Database Layer", () => {
   describe("Connection Management", () => {
     describe("connect", () => {
       it("should establish database connection successfully", async () => {
+        mockPrismaClient.$connect.mockResolvedValue(undefined);
+
         await expect(database.connect()).resolves.not.toThrow();
 
-        expect(mockPool.connect).toHaveBeenCalled();
-        expect(mockClient.release).toHaveBeenCalled();
+        expect(mockPrismaClient.$connect).toHaveBeenCalled();
       });
 
       it("should throw error if connection fails", async () => {
-        mockPool.connect.mockRejectedValue(new Error("Connection failed"));
+        mockPrismaClient.$connect.mockRejectedValue(
+          new Error("Connection failed")
+        );
 
         await expect(database.connect()).rejects.toThrow(
           "Failed to connect to database: Connection failed"
@@ -68,10 +59,13 @@ describe("Database Layer", () => {
 
     describe("disconnect", () => {
       it("should close database connection", async () => {
+        mockPrismaClient.$connect.mockResolvedValue(undefined);
+        mockPrismaClient.$disconnect.mockResolvedValue(undefined);
+
         await database.connect();
         await database.disconnect();
 
-        expect(mockPool.end).toHaveBeenCalled();
+        expect(mockPrismaClient.$disconnect).toHaveBeenCalled();
       });
 
       it("should handle disconnect when not connected", async () => {
@@ -81,24 +75,25 @@ describe("Database Layer", () => {
 
     describe("healthCheck", () => {
       it("should return healthy status", async () => {
+        mockPrismaClient.$connect.mockResolvedValue(undefined);
+        mockPrismaClient.$queryRaw.mockResolvedValue([{ "?column?": 1 }]);
+
         await database.connect();
-
-        const mockHealthResult = {
-          rows: [{ status: "healthy", timestamp: new Date() }],
-        };
-        mockClient.query.mockResolvedValue(mockHealthResult);
-
         const result = await database.healthCheck();
 
         expect(result.success).toBe(true);
         expect(result.data?.status).toBe("healthy");
         expect(result.data?.timestamp).toBeInstanceOf(Date);
+        expect(mockPrismaClient.$queryRaw).toHaveBeenCalled();
       });
 
       it("should handle health check failure", async () => {
-        await database.connect();
-        mockClient.query.mockRejectedValue(new Error("Health check failed"));
+        mockPrismaClient.$connect.mockResolvedValue(undefined);
+        mockPrismaClient.$queryRaw.mockRejectedValue(
+          new Error("Health check failed")
+        );
 
+        await database.connect();
         const result = await database.healthCheck();
 
         expect(result.success).toBe(false);
@@ -116,43 +111,46 @@ describe("Database Layer", () => {
       interpretations: { test: "test interpretation" },
       related_symbols: ["test-symbol-2"],
       properties: { test: true },
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
     beforeEach(async () => {
+      mockPrismaClient.$connect.mockResolvedValue(undefined);
       await database.connect();
     });
 
     describe("getSymbols", () => {
       it("should return symbols with default pagination", async () => {
-        const mockResult = {
-          rows: [mockSymbol],
-        };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbol.findMany.mockResolvedValue([mockSymbol]);
 
         const result = await database.getSymbols();
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual([mockSymbol]);
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("SELECT id, name, category"),
-          [50, 0]
-        );
+        expect(mockPrismaClient.symbol.findMany).toHaveBeenCalledWith({
+          take: 50,
+          skip: 0,
+          orderBy: { name: "asc" },
+        });
       });
 
       it("should respect custom pagination options", async () => {
-        const mockResult = { rows: [] };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbol.findMany.mockResolvedValue([]);
 
         await database.getSymbols({ limit: 10, offset: 20 });
 
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("LIMIT $1 OFFSET $2"),
-          [10, 20]
-        );
+        expect(mockPrismaClient.symbol.findMany).toHaveBeenCalledWith({
+          take: 10,
+          skip: 20,
+          orderBy: { name: "asc" },
+        });
       });
 
       it("should handle database errors gracefully", async () => {
-        mockClient.query.mockRejectedValue(new Error("Database error"));
+        mockPrismaClient.symbol.findMany.mockRejectedValue(
+          new Error("Database error")
+        );
 
         const result = await database.getSymbols();
 
@@ -163,21 +161,28 @@ describe("Database Layer", () => {
 
     describe("searchSymbols", () => {
       it("should search symbols by query", async () => {
-        const mockResult = { rows: [mockSymbol] };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbol.findMany.mockResolvedValue([mockSymbol]);
 
         const result = await database.searchSymbols("test");
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual([mockSymbol]);
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("WHERE"),
-          ["%test%", 50, 0]
-        );
+        expect(mockPrismaClient.symbol.findMany).toHaveBeenCalledWith({
+          where: {
+            OR: [
+              { name: { contains: "test", mode: "insensitive" } },
+              { description: { contains: "test", mode: "insensitive" } },
+              { category: { contains: "test", mode: "insensitive" } },
+            ],
+          },
+          take: 50,
+          skip: 0,
+          orderBy: { name: "asc" },
+        });
       });
 
       it("should handle empty search results", async () => {
-        mockClient.query.mockResolvedValue({ rows: [] });
+        mockPrismaClient.symbol.findMany.mockResolvedValue([]);
 
         const result = await database.searchSymbols("nonexistent");
 
@@ -188,35 +193,51 @@ describe("Database Layer", () => {
 
     describe("filterByCategory", () => {
       it("should filter symbols by category", async () => {
-        const mockResult = { rows: [mockSymbol] };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbol.findMany.mockResolvedValue([mockSymbol]);
 
         const result = await database.filterByCategory("test");
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual([mockSymbol]);
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("WHERE category = $1"),
-          ["test", 50, 0]
-        );
+        expect(mockPrismaClient.symbol.findMany).toHaveBeenCalledWith({
+          where: { category: "test" },
+          take: 50,
+          skip: 0,
+          orderBy: { name: "asc" },
+        });
       });
     });
 
     describe("getCategories", () => {
       it("should return list of unique categories", async () => {
-        const mockResult = {
-          rows: [{ category: "test" }, { category: "demo" }],
-        };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbol.findMany.mockResolvedValue([
+          { category: "test" },
+          { category: "demo" },
+        ]);
 
         const result = await database.getCategories();
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual(["test", "demo"]);
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("SELECT DISTINCT category"),
-          []
-        );
+        expect(mockPrismaClient.symbol.findMany).toHaveBeenCalledWith({
+          where: { category: { not: null } },
+          select: { category: true },
+          distinct: ["category"],
+          orderBy: { category: "asc" },
+        });
+      });
+
+      it("should filter out null categories", async () => {
+        mockPrismaClient.symbol.findMany.mockResolvedValue([
+          { category: "test" },
+          { category: null },
+          { category: "demo" },
+        ]);
+
+        const result = await database.getCategories();
+
+        expect(result.success).toBe(true);
+        expect(result.data).toEqual(["test", "demo"]);
       });
     });
   });
@@ -228,41 +249,63 @@ describe("Database Layer", () => {
       category: "test",
       description: "A test symbol set",
       symbols: { "test-symbol-1": { weight: 1.0 } },
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
     beforeEach(async () => {
+      mockPrismaClient.$connect.mockResolvedValue(undefined);
       await database.connect();
     });
 
     describe("getSymbolSets", () => {
       it("should return symbol sets with pagination", async () => {
-        const mockResult = { rows: [mockSymbolSet] };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbolSet.findMany.mockResolvedValue([mockSymbolSet]);
 
         const result = await database.getSymbolSets();
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual([mockSymbolSet]);
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("FROM symbol_sets"),
-          [50, 0]
-        );
+        expect(mockPrismaClient.symbolSet.findMany).toHaveBeenCalledWith({
+          take: 50,
+          skip: 0,
+          orderBy: { name: "asc" },
+        });
+      });
+
+      it("should respect custom pagination options", async () => {
+        mockPrismaClient.symbolSet.findMany.mockResolvedValue([]);
+
+        await database.getSymbolSets({ limit: 10, offset: 20 });
+
+        expect(mockPrismaClient.symbolSet.findMany).toHaveBeenCalledWith({
+          take: 10,
+          skip: 20,
+          orderBy: { name: "asc" },
+        });
       });
     });
 
     describe("searchSymbolSets", () => {
       it("should search symbol sets by query", async () => {
-        const mockResult = { rows: [mockSymbolSet] };
-        mockClient.query.mockResolvedValue(mockResult);
+        mockPrismaClient.symbolSet.findMany.mockResolvedValue([mockSymbolSet]);
 
         const result = await database.searchSymbolSets("test");
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual([mockSymbolSet]);
-        expect(mockClient.query).toHaveBeenCalledWith(
-          expect.stringContaining("WHERE"),
-          ["%test%", 50, 0]
-        );
+        expect(mockPrismaClient.symbolSet.findMany).toHaveBeenCalledWith({
+          where: {
+            OR: [
+              { name: { contains: "test", mode: "insensitive" } },
+              { description: { contains: "test", mode: "insensitive" } },
+              { category: { contains: "test", mode: "insensitive" } },
+            ],
+          },
+          take: 50,
+          skip: 0,
+          orderBy: { name: "asc" },
+        });
       });
     });
   });
@@ -270,6 +313,48 @@ describe("Database Layer", () => {
   describe("Error Handling", () => {
     it("should handle queries when not connected", async () => {
       const result = await database.getSymbols();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Database not connected");
+    });
+
+    it("should handle symbol search when not connected", async () => {
+      const result = await database.searchSymbols("test");
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Database not connected");
+    });
+
+    it("should handle category filtering when not connected", async () => {
+      const result = await database.filterByCategory("test");
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Database not connected");
+    });
+
+    it("should handle get categories when not connected", async () => {
+      const result = await database.getCategories();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Database not connected");
+    });
+
+    it("should handle symbol sets when not connected", async () => {
+      const result = await database.getSymbolSets();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Database not connected");
+    });
+
+    it("should handle symbol set search when not connected", async () => {
+      const result = await database.searchSymbolSets("test");
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Database not connected");
+    });
+
+    it("should handle health check when not connected", async () => {
+      const result = await database.healthCheck();
 
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("Database not connected");

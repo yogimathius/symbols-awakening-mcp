@@ -2,10 +2,10 @@
  * Symbols Awakening MCP Server
  * CLI entry point for the symbolic ontology MCP server
  */
-
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { PrismaDatabase } from "@/database/PrismaDatabase.js";
+
+import { PrismaDatabase } from "@/database/Database.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
 
 // Version info
@@ -114,11 +114,7 @@ async function main(): Promise<void> {
     server.tool(
       "get_server_info",
       "Get information about the symbols ontology server",
-      {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
+      {},
       async () => {
         const healthCheck = await database.healthCheck();
 
@@ -156,13 +152,63 @@ async function main(): Promise<void> {
     );
 
     // Connect via stdio transport
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    // Ensure stdio streams are properly configured for MCP
+    if (!process.stdin || !process.stdout) {
+      throw new Error(
+        "stdio streams not available - MCP server requires stdin/stdout"
+      );
+    }
 
-    console.error(`✓ MCP server started successfully on stdio transport`);
-    console.error(
-      `✓ Available tools: get_symbols, search_symbols, filter_by_category, get_categories, get_symbol_sets, search_symbol_sets`
-    );
+    // Critical: Set up stdio streams for MCP protocol
+    process.stdin.setEncoding("utf8");
+    process.stdout.setEncoding("utf8");
+
+    // Ensure stdin is in the correct mode for MCP
+    if (process.stdin.setRawMode) {
+      process.stdin.setRawMode(false);
+    }
+
+    // Resume stdin if it's paused
+    if (
+      !process.stdin.readable ||
+      (process.stdin as any).readableState?.ended
+    ) {
+      process.stdin.resume();
+    }
+
+    // Handle any stream errors
+    process.stdin.on("error", (err) => {
+      console.error("stdin error:", err);
+    });
+
+    process.stdout.on("error", (err) => {
+      console.error("stdout error:", err);
+    });
+
+    try {
+      // Create and connect the transport
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+
+      // eslint-disable-next-line no-console, no-undef
+      console.error(`✓ MCP server started successfully on stdio transport`);
+      // eslint-disable-next-line no-console, no-undef
+      console.error(
+        `✓ Available tools: get_symbols, search_symbols, filter_by_category, get_categories, get_symbol_sets, search_symbol_sets`
+      );
+
+      // Keep the process alive
+      process.stdin.resume();
+    } catch (transportError) {
+      console.error("Failed to start stdio transport:", transportError);
+      console.error(
+        "Transport error details:",
+        (transportError as Error).stack
+      );
+      throw new Error(
+        `MCP transport error: ${(transportError as Error).message}`
+      );
+    }
 
     // Server is now running and will handle MCP protocol messages
   } catch (error) {

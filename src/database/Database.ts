@@ -1,14 +1,10 @@
-import {
-  Pool,
-  PoolClient,
-  QueryResult as PgQueryResult,
-  QueryResultRow,
-} from "pg";
+import { PrismaClient } from "@prisma/client";
+
 import type {
+  QueryOptions,
+  QueryResult,
   Symbol,
   SymbolSet,
-  QueryResult,
-  QueryOptions,
 } from "@/types/Symbol.js";
 
 /**
@@ -76,31 +72,23 @@ export interface IDatabase {
 }
 
 /**
- * PostgreSQL database implementation
+ * Prisma-based database implementation
  */
-export class PostgreSQLDatabase implements IDatabase {
-  public pool: Pool | null = null; // Made public for SchemaManager access
-  private readonly connectionString: string;
+export class PrismaDatabase implements IDatabase {
+  private prisma: PrismaClient | null = null;
 
-  constructor(connectionString?: string) {
-    this.connectionString =
-      connectionString ??
-      process.env.DATABASE_URL ??
-      "postgres://localhost:5432/symbols_awakening";
+  constructor() {
+    // Prisma client will be initialized in connect()
   }
 
   async connect(): Promise<void> {
     try {
-      this.pool = new Pool({
-        connectionString: this.connectionString,
-        max: 10,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      });
+      this.prisma = new PrismaClient();
 
       // Test the connection
-      const client = await this.pool.connect();
-      client.release();
+      await this.prisma.$connect();
+      // eslint-disable-next-line no-console, no-undef
+      console.error("✓ Database connected successfully with Prisma");
     } catch (error) {
       throw new Error(
         `Failed to connect to database: ${(error as Error).message}`
@@ -109,74 +97,81 @@ export class PostgreSQLDatabase implements IDatabase {
   }
 
   async disconnect(): Promise<void> {
-    if (this.pool) {
-      await this.pool.end();
-      this.pool = null;
+    if (this.prisma) {
+      await this.prisma.$disconnect();
+      this.prisma = null;
     }
   }
 
   async initializeSchema(includeSampleData = false): Promise<void> {
-    // Import SchemaManager here to avoid circular dependency
-    const { SchemaManager } = await import("./SchemaManager.js");
-    const schemaManager = new SchemaManager(this);
+    if (!this.prisma) {
+      throw new Error("Database not connected");
+    }
 
-    // Check if schema already exists
-    const schemaExists = await schemaManager.checkSchemaExists();
+    try {
+      // Push the schema to the database
+      const { execSync } = await import("child_process");
+      execSync("npx prisma db push", { stdio: "inherit" });
 
-    if (!schemaExists) {
-      await schemaManager.initializeSchema(includeSampleData);
-    } else {
-      console.error("✓ Database schema already exists");
+      if (includeSampleData) {
+        // Run the seed script
+        execSync("npx tsx prisma/seed.ts", { stdio: "inherit" });
+      }
+
+      // eslint-disable-next-line no-console, no-undef
+      console.error("✓ Database schema initialized successfully with Prisma");
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize database schema: ${(error as Error).message}`
+      );
     }
   }
 
   async getSymbols(options: QueryOptions = {}): Promise<QueryResult<Symbol[]>> {
     try {
-      const { limit = 50, offset = 0 } = options;
-      const query = `
-        SELECT id, name, category, description, interpretations, related_symbols, properties
-        FROM symbols
-        ORDER BY name
-        LIMIT $1 OFFSET $2
-      `;
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
 
-      const result = await this.executeQuery<Symbol>(query, [limit, offset]);
-      return { success: true, data: result.rows };
+      const { limit = 50, offset = 0 } = options;
+
+      const symbols = await this.prisma.symbol.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { name: "asc" },
+      });
+
+      return { success: true, data: symbols as Symbol[] };
     } catch (error) {
       return { success: false, error: error as Error };
     }
   }
 
   async searchSymbols(
-    searchQuery: string,
+    query: string,
     options: QueryOptions = {}
   ): Promise<QueryResult<Symbol[]>> {
     try {
-      const { limit = 50, offset = 0 } = options;
-      const query = `
-        SELECT id, name, category, description, interpretations, related_symbols, properties
-        FROM symbols
-        WHERE 
-          name ILIKE $1 OR 
-          description ILIKE $1 OR 
-          category ILIKE $1
-        ORDER BY 
-          CASE 
-            WHEN name ILIKE $1 THEN 1
-            WHEN category ILIKE $1 THEN 2
-            ELSE 3
-          END,
-          name
-        LIMIT $2 OFFSET $3
-      `;
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
 
-      const searchPattern = `%${searchQuery}%`;
-      const result = await this.executeQuery<Symbol>(query, [
-        searchPattern,
-        limit,
-        offset,
-      ]);
-      return { success: true, data: result.rows };
+      const { limit = 50, offset = 0 } = options;
+
+      const symbols = await this.prisma.symbol.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { description: { contains: query, mode: "insensitive" } },
+            { category: { contains: query, mode: "insensitive" } },
+          ],
+        },
+        take: limit,
+        skip: offset,
+        orderBy: { name: "asc" },
+      });
+
+      return { success: true, data: symbols as Symbol[] };
     } catch (error) {
       return { success: false, error: error as Error };
     }
@@ -187,21 +182,20 @@ export class PostgreSQLDatabase implements IDatabase {
     options: QueryOptions = {}
   ): Promise<QueryResult<Symbol[]>> {
     try {
-      const { limit = 50, offset = 0 } = options;
-      const query = `
-        SELECT id, name, category, description, interpretations, related_symbols, properties
-        FROM symbols
-        WHERE category = $1
-        ORDER BY name
-        LIMIT $2 OFFSET $3
-      `;
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
 
-      const result = await this.executeQuery<Symbol>(query, [
-        category,
-        limit,
-        offset,
-      ]);
-      return { success: true, data: result.rows };
+      const { limit = 50, offset = 0 } = options;
+
+      const symbols = await this.prisma.symbol.findMany({
+        where: { category },
+        take: limit,
+        skip: offset,
+        orderBy: { name: "asc" },
+      });
+
+      return { success: true, data: symbols as Symbol[] };
     } catch (error) {
       return { success: false, error: error as Error };
     }
@@ -209,15 +203,25 @@ export class PostgreSQLDatabase implements IDatabase {
 
   async getCategories(): Promise<QueryResult<string[]>> {
     try {
-      const query = `
-        SELECT DISTINCT category
-        FROM symbols
-        WHERE category IS NOT NULL
-        ORDER BY category
-      `;
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
 
-      const result = await this.executeQuery<{ category: string }>(query, []);
-      const categories = result.rows.map((row) => row.category);
+      const result = await this.prisma.symbol.findMany({
+        where: {
+          category: { not: null },
+        },
+        select: { category: true },
+        distinct: ["category"],
+        orderBy: { category: "asc" },
+      });
+
+      const categories = result
+        .map((item: { category: string | null }) => item.category)
+        .filter(
+          (category: string | null): category is string => category !== null
+        );
+
       return { success: true, data: categories };
     } catch (error) {
       return { success: false, error: error as Error };
@@ -228,51 +232,49 @@ export class PostgreSQLDatabase implements IDatabase {
     options: QueryOptions = {}
   ): Promise<QueryResult<SymbolSet[]>> {
     try {
-      const { limit = 50, offset = 0 } = options;
-      const query = `
-        SELECT id, name, category, description, symbols
-        FROM symbol_sets
-        ORDER BY name
-        LIMIT $1 OFFSET $2
-      `;
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
 
-      const result = await this.executeQuery<SymbolSet>(query, [limit, offset]);
-      return { success: true, data: result.rows };
+      const { limit = 50, offset = 0 } = options;
+
+      const symbolSets = await this.prisma.symbolSet.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { name: "asc" },
+      });
+
+      return { success: true, data: symbolSets as SymbolSet[] };
     } catch (error) {
       return { success: false, error: error as Error };
     }
   }
 
   async searchSymbolSets(
-    searchQuery: string,
+    query: string,
     options: QueryOptions = {}
   ): Promise<QueryResult<SymbolSet[]>> {
     try {
-      const { limit = 50, offset = 0 } = options;
-      const query = `
-        SELECT id, name, category, description, symbols
-        FROM symbol_sets
-        WHERE 
-          name ILIKE $1 OR 
-          description ILIKE $1 OR 
-          category ILIKE $1
-        ORDER BY 
-          CASE 
-            WHEN name ILIKE $1 THEN 1
-            WHEN category ILIKE $1 THEN 2
-            ELSE 3
-          END,
-          name
-        LIMIT $2 OFFSET $3
-      `;
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
 
-      const searchPattern = `%${searchQuery}%`;
-      const result = await this.executeQuery<SymbolSet>(query, [
-        searchPattern,
-        limit,
-        offset,
-      ]);
-      return { success: true, data: result.rows };
+      const { limit = 50, offset = 0 } = options;
+
+      const symbolSets = await this.prisma.symbolSet.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { description: { contains: query, mode: "insensitive" } },
+            { category: { contains: query, mode: "insensitive" } },
+          ],
+        },
+        take: limit,
+        skip: offset,
+        orderBy: { name: "asc" },
+      });
+
+      return { success: true, data: symbolSets as SymbolSet[] };
     } catch (error) {
       return { success: false, error: error as Error };
     }
@@ -282,44 +284,22 @@ export class PostgreSQLDatabase implements IDatabase {
     QueryResult<{ status: string; timestamp: Date }>
   > {
     try {
-      const query = "SELECT 'healthy' as status, NOW() as timestamp";
-      const result = await this.executeQuery<{
-        status: string;
-        timestamp: Date;
-      }>(query, []);
-
-      if (result.rows.length > 0) {
-        const healthData = result.rows[0];
-        if (healthData) {
-          return { success: true, data: healthData };
-        }
+      if (!this.prisma) {
+        throw new Error("Database not connected");
       }
 
+      // Simple query to test connection
+      await this.prisma.$queryRaw`SELECT 1`;
+
       return {
-        success: false,
-        error: new Error("Health check returned no results"),
+        success: true,
+        data: {
+          status: "healthy",
+          timestamp: new Date(),
+        },
       };
     } catch (error) {
       return { success: false, error: error as Error };
-    }
-  }
-
-  /**
-   * Execute a parameterized query safely
-   */
-  private async executeQuery<T extends QueryResultRow>(
-    query: string,
-    params: unknown[]
-  ): Promise<PgQueryResult<T>> {
-    if (!this.pool) {
-      throw new Error("Database not connected");
-    }
-
-    const client: PoolClient = await this.pool.connect();
-    try {
-      return await client.query<T>(query, params);
-    } finally {
-      client.release();
     }
   }
 }

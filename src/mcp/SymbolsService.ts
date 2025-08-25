@@ -1,101 +1,73 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
 import type { IDatabase } from "@/database/Database.js";
 
 /**
- * Schema definitions for MCP tool parameters
+ * Zod schema definitions for MCP tool parameters
  */
 export const TOOL_SCHEMAS = {
   get_symbols: {
-    type: "object",
-    properties: {
-      limit: {
-        type: "number",
-        description: "Maximum number of symbols to return",
-        default: 50,
-        minimum: 1,
-        maximum: 100,
-      },
-    },
-    additionalProperties: false,
+    limit: z
+      .number()
+      .min(1)
+      .max(100)
+      .default(50)
+      .optional()
+      .describe("Maximum number of symbols to return"),
   },
 
   search_symbols: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description:
-          "Search text to match against symbol names, descriptions, and categories",
-      },
-      limit: {
-        type: "number",
-        description: "Maximum number of symbols to return",
-        default: 50,
-        minimum: 1,
-        maximum: 100,
-      },
-    },
-    required: ["query"],
-    additionalProperties: false,
+    query: z
+      .string()
+      .describe(
+        "Search text to match against symbol names, descriptions, and categories"
+      ),
+    limit: z
+      .number()
+      .min(1)
+      .max(100)
+      .default(50)
+      .optional()
+      .describe("Maximum number of symbols to return"),
   },
 
   filter_by_category: {
-    type: "object",
-    properties: {
-      category: {
-        type: "string",
-        description: "Category name to filter symbols by",
-      },
-      limit: {
-        type: "number",
-        description: "Maximum number of symbols to return",
-        default: 50,
-        minimum: 1,
-        maximum: 100,
-      },
-    },
-    required: ["category"],
-    additionalProperties: false,
+    category: z.string().describe("Category name to filter symbols by"),
+    limit: z
+      .number()
+      .min(1)
+      .max(100)
+      .default(50)
+      .optional()
+      .describe("Maximum number of symbols to return"),
   },
 
-  get_categories: {
-    type: "object",
-    properties: {},
-    additionalProperties: false,
-  },
+  get_categories: {},
 
   get_symbol_sets: {
-    type: "object",
-    properties: {
-      limit: {
-        type: "number",
-        description: "Maximum number of symbol sets to return",
-        default: 50,
-        minimum: 1,
-        maximum: 100,
-      },
-    },
-    additionalProperties: false,
+    limit: z
+      .number()
+      .min(1)
+      .max(100)
+      .default(50)
+      .optional()
+      .describe("Maximum number of symbol sets to return"),
   },
 
   search_symbol_sets: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description:
-          "Search text to match against symbol set names, descriptions, and categories",
-      },
-      limit: {
-        type: "number",
-        description: "Maximum number of symbol sets to return",
-        default: 50,
-        minimum: 1,
-        maximum: 100,
-      },
-    },
-    required: ["query"],
-    additionalProperties: false,
+    query: z
+      .string()
+      .describe(
+        "Search text to match against symbol set names, descriptions, and categories"
+      ),
+    limit: z
+      .number()
+      .min(1)
+      .max(100)
+      .default(50)
+      .optional()
+      .describe("Maximum number of symbol sets to return"),
   },
 } as const;
 
@@ -130,44 +102,33 @@ export class SymbolsService {
       TOOL_SCHEMAS.get_symbols,
       async (args) => {
         try {
-          const { limit = 50 } = args as { limit?: number };
+          const limit = typeof args.limit === "number" ? args.limit : 50;
 
-          const result = await this.database.getSymbols({ limit });
+          const result = await this.database.getSymbols({
+            limit,
+            offset: 0,
+          });
 
-          if (result.success && result.data) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      symbols: result.data,
-                      count: result.data.length,
-                      message: `Retrieved ${result.data.length} symbols`,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to retrieve symbols",
-                      details: result.error?.message || "Unknown error",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+          if (!result.success) {
+            throw new Error(result.error?.message ?? "Failed to get symbols");
           }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    symbols: result.data ?? [],
+                    count: result.data?.length ?? 0,
+                    message: `Retrieved ${result.data?.length ?? 0} symbols`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
         } catch (error) {
           return {
             content: [
@@ -199,7 +160,7 @@ export class SymbolsService {
       TOOL_SCHEMAS.search_symbols,
       async (args) => {
         try {
-          const { query, limit = 50 } = args as {
+          const { query } = args as {
             query: string;
             limit?: number;
           };
@@ -221,43 +182,38 @@ export class SymbolsService {
             };
           }
 
-          const result = await this.database.searchSymbols(query, { limit });
+          const searchLimit = typeof args.limit === "number" ? args.limit : 50;
 
-          if (result.success && result.data) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      symbols: result.data,
-                      count: result.data.length,
-                      query,
-                      message: `Found ${result.data.length} symbols matching "${query}"`,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to search symbols",
-                      details: result.error?.message || "Unknown error",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+          const result = await this.database.searchSymbols(query, {
+            limit: searchLimit,
+            offset: 0,
+          });
+
+          if (!result.success) {
+            throw new Error(
+              result.error?.message ?? "Failed to search symbols"
+            );
           }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    symbols: result.data ?? [],
+                    count: result.data?.length ?? 0,
+                    query,
+                    message: `Found ${
+                      result.data?.length ?? 0
+                    } symbols matching "${query}"`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
         } catch (error) {
           return {
             content: [
@@ -289,7 +245,7 @@ export class SymbolsService {
       TOOL_SCHEMAS.filter_by_category,
       async (args) => {
         try {
-          const { category, limit = 50 } = args as {
+          const { category } = args as {
             category: string;
             limit?: number;
           };
@@ -311,45 +267,38 @@ export class SymbolsService {
             };
           }
 
+          const filterLimit = typeof args.limit === "number" ? args.limit : 50;
+
           const result = await this.database.filterByCategory(category, {
-            limit,
+            limit: filterLimit,
+            offset: 0,
           });
 
-          if (result.success && result.data) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      symbols: result.data,
-                      count: result.data.length,
-                      category,
-                      message: `Found ${result.data.length} symbols in category "${category}"`,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to filter symbols by category",
-                      details: result.error?.message || "Unknown error",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+          if (!result.success) {
+            throw new Error(
+              result.error?.message ?? "Failed to filter symbols by category"
+            );
           }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    symbols: result.data ?? [],
+                    count: result.data?.length ?? 0,
+                    category,
+                    message: `Found ${
+                      result.data?.length ?? 0
+                    } symbols in category "${category}"`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
         } catch (error) {
           return {
             content: [
@@ -383,40 +332,28 @@ export class SymbolsService {
         try {
           const result = await this.database.getCategories();
 
-          if (result.success && result.data) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      categories: result.data,
-                      count: result.data.length,
-                      message: `Retrieved ${result.data.length} categories`,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to retrieve categories",
-                      details: result.error?.message || "Unknown error",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+          if (!result.success) {
+            throw new Error(
+              result.error?.message ?? "Failed to get categories"
+            );
           }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    categories: result.data ?? [],
+                    count: result.data?.length ?? 0,
+                    message: `Retrieved ${result.data?.length ?? 0} categories`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
         } catch (error) {
           return {
             content: [
@@ -448,44 +385,38 @@ export class SymbolsService {
       TOOL_SCHEMAS.get_symbol_sets,
       async (args) => {
         try {
-          const { limit = 50 } = args as { limit?: number };
+          const symbolSetLimit =
+            typeof args.limit === "number" ? args.limit : 50;
 
-          const result = await this.database.getSymbolSets({ limit });
+          const result = await this.database.getSymbolSets({
+            limit: symbolSetLimit,
+            offset: 0,
+          });
 
-          if (result.success && result.data) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      symbol_sets: result.data,
-                      count: result.data.length,
-                      message: `Retrieved ${result.data.length} symbol sets`,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to retrieve symbol sets",
-                      details: result.error?.message || "Unknown error",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+          if (!result.success) {
+            throw new Error(
+              result.error?.message ?? "Failed to get symbol sets"
+            );
           }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    symbol_sets: result.data ?? [],
+                    count: result.data?.length ?? 0,
+                    message: `Retrieved ${
+                      result.data?.length ?? 0
+                    } symbol sets`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
         } catch (error) {
           return {
             content: [
@@ -517,7 +448,7 @@ export class SymbolsService {
       TOOL_SCHEMAS.search_symbol_sets,
       async (args) => {
         try {
-          const { query, limit = 50 } = args as {
+          const { query } = args as {
             query: string;
             limit?: number;
           };
@@ -539,43 +470,39 @@ export class SymbolsService {
             };
           }
 
-          const result = await this.database.searchSymbolSets(query, { limit });
+          const searchSetLimit =
+            typeof args.limit === "number" ? args.limit : 50;
 
-          if (result.success && result.data) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      symbol_sets: result.data,
-                      count: result.data.length,
-                      query,
-                      message: `Found ${result.data.length} symbol sets matching "${query}"`,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          } else {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to search symbol sets",
-                      details: result.error?.message || "Unknown error",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+          const result = await this.database.searchSymbolSets(query, {
+            limit: searchSetLimit,
+            offset: 0,
+          });
+
+          if (!result.success) {
+            throw new Error(
+              result.error?.message ?? "Failed to search symbol sets"
+            );
           }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    symbol_sets: result.data ?? [],
+                    count: result.data?.length ?? 0,
+                    query,
+                    message: `Found ${
+                      result.data?.length ?? 0
+                    } symbol sets matching "${query}"`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
         } catch (error) {
           return {
             content: [
