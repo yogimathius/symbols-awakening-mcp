@@ -8,6 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { PrismaDatabase } from "@/database/Database.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
 import { CsvService } from "@/services/CsvService.js";
+import { ApiServer } from "@/api/ApiServer.js";
 import path from "path";
 
 // Version info
@@ -24,7 +25,8 @@ ${SERVER_NAME} v${VERSION}
 A symbolic reasoning engine that serves as an MCP server for symbolic ontology operations.
 
 Usage:
-  ${SERVER_NAME}                           Start the MCP server
+  ${SERVER_NAME}                           Start the MCP server (default)
+  ${SERVER_NAME} --api                     Start the REST API server
   ${SERVER_NAME} --help                    Show this help message
   ${SERVER_NAME} --version                 Show version information
   
@@ -37,6 +39,7 @@ Usage:
 Environment Variables:
   DATABASE_URL               PostgreSQL connection string
   NODE_ENV                  Environment (development, production, test)
+  PORT                      Port for REST API server (default: 3000)
 
 MCP Tools Available:
   Read-only tools:
@@ -272,6 +275,79 @@ async function main(): Promise<void> {
     if (!(await handleCliArgs())) {
       process.exit(0);
     }
+
+    // Check if we should start the REST API server
+    const startApiServer = process.argv.includes('--api');
+    
+    if (startApiServer) {
+      await startRestApiServer();
+      return;
+    }
+
+    // Default: start MCP server
+    await startMcpServer();
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+/**
+ * Start the REST API server
+ */
+async function startRestApiServer(): Promise<void> {
+  console.error('🚀 Starting REST API server...');
+  
+  // Initialize database with Prisma
+  const database = new PrismaDatabase();
+  
+  // Connect to database
+  try {
+    await database.connect();
+  } catch (error) {
+    console.error(`❌ Database connection failed: ${(error as Error).message}`);
+    console.error('REST API server requires database connection');
+    process.exit(1);
+  }
+
+  // Create and start API server
+  const apiServer = new ApiServer(database);
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  
+  try {
+    await apiServer.start(port);
+    
+    // Set up graceful shutdown for API server
+    const shutdown = async (signal: string): Promise<void> => {
+      console.error(`\nReceived ${signal}, shutting down REST API server gracefully...`);
+      
+      try {
+        await apiServer.stop();
+        await database.disconnect();
+        console.error('✓ Server stopped successfully');
+        process.exit(0);
+      } catch (error) {
+        console.error('Error during shutdown:', error);
+        process.exit(1);
+      }
+    };
+
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    
+  } catch (error) {
+    console.error(`❌ Failed to start REST API server: ${(error as Error).message}`);
+    await database.disconnect();
+    process.exit(1);
+  }
+}
+
+/**
+ * Start the MCP server
+ */
+async function startMcpServer(): Promise<void> {
+  try {
+    console.error('🚀 Starting MCP server...');
 
     // Create MCP Server
     const server = new McpServer(
