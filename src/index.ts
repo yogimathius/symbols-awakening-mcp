@@ -38,7 +38,7 @@ MCP Tools Available:
   • get_symbol_sets         List symbol sets with optional limit
   • search_symbol_sets      Search symbol sets by text query
 
-For more information, visit: https://github.com/your-username/symbols-awakening-mcp
+For more information, visit: https://github.com/yogimathius/symbols-awakening-mcp
 `);
 }
 

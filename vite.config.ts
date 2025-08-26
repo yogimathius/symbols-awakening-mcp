@@ -29,6 +29,13 @@ export default defineConfig({
         "http",
         "https",
         "zlib",
+        "process",
+        "tty",
+        "readline",
+        // Node.js module pattern
+        "node:process",
+        "node:tty",
+        "node:readline",
         // Prisma client - keep it external to avoid bundling issues
         "@prisma/client",
         ".prisma/client",

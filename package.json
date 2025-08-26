@@ -79,5 +79,8 @@
       "@prisma/engines",
       "prisma"
     ]
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

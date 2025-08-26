@@ -2,11 +2,10 @@
   "mcpServers": {
     "symbols-awakening": {
       "command": "node",
-      "args": ["dist/index.js"],
-      "cwd": "/Users/mathiusjohnson/projects/symbols-awakening-mcp",
-      "env": {
-        "DATABASE_URL": "postgresql://$(whoami)@localhost:5432/symbols_awakening"
-      }
+      "args": [
+        "dist/index.js"
+      ],
+      "cwd": "/Users/mathiusjohnson/projects/build/symbols-awakening-mcp"
     }
   }
 }
