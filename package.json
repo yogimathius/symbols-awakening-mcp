@@ -13,7 +13,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -26,18 +26,28 @@
     "format:check": "prettier --check 'src/**/*.{ts,js}'",
     "clean": "rimraf dist",
     "prepublishOnly": "pnpm run clean && pnpm run build",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepare": "husky"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
     "symbols",
     "ontology",
+    "symbolic-reasoning",
     "ai",
     "claude",
-    "cursor"
+    "cursor",
+    "philosophy",
+    "metaphysics",
+    "sacred-geometry",
+    "cli",
+    "server",
+    "database",
+    "search",
+    "postgresql"
   ],
-  "author": "Your Name",
+  "author": "Mathius Johnson <mathius@example.com>",
   "license": "MPL-2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.7.0",
@@ -46,6 +56,8 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@eslint/js": "^8.57.1",
     "@trivago/prettier-plugin-sort-imports": "^5.2.2",
     "@types/node": "^20.9.0",
@@ -54,6 +66,7 @@
     "@vitest/coverage-v8": "^1.0.0",
     "@vitest/ui": "^1.0.0",
     "eslint": "^8.54.0",
+    "husky": "^9.1.7",
     "prettier": "^3.6.2",
     "rimraf": "^5.0.5",
     "tsx": "^4.19.4",

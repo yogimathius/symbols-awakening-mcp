@@ -4,19 +4,76 @@ A symbolic reasoning engine that serves as a Model Context Protocol (MCP) server
 
 ## 🚀 Quick Start
 
-### Installation via NPX
+### Installation & Usage
 
+**One-time usage (recommended):**
 ```bash
-npx -y symbols-awakening-mcp --help
+# Run immediately without installation
+npx symbols-awakening-mcp --help
+npx symbols-awakening-mcp --version
+
+# Start MCP server (for use with Claude Desktop, Cursor, etc.)
+npx symbols-awakening-mcp
+```
+
+**Global installation:**
+```bash
+# Install globally
+npm install -g symbols-awakening-mcp
+
+# Use anywhere
+symbols-awakening-mcp --help
+symbols-awakening-mcp
+```
+
+### MCP Client Configuration
+
+#### Claude Desktop
+Add to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "symbols-awakening": {
+      "command": "npx",
+      "args": ["-y", "symbols-awakening-mcp"],
+      "env": {
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/symbols_db"
+      }
+    }
+  }
+}
+```
+
+#### Cursor IDE
+Add to your MCP configuration:
+```json
+{
+  "symbols-awakening": {
+    "command": "npx",
+    "args": ["-y", "symbols-awakening-mcp"],
+    "env": {
+      "DATABASE_URL": "postgresql://user:password@localhost:5432/symbols_db"
+    }
+  }
+}
 ```
 
 ### Local Development
 
 ```bash
 # Clone and install dependencies
-git clone <repository-url>
+git clone https://github.com/yogimathius/symbols-awakening-mcp.git
 cd symbols-awakening-mcp
 pnpm install
+
+# Set up database
+cp .env.example .env
+# Edit .env with your PostgreSQL connection
+
+# Generate Prisma client and seed database
+pnpm prisma generate
+pnpm prisma db push
+pnpm prisma db seed
 
 # Run in development mode
 pnpm dev
@@ -26,9 +83,6 @@ pnpm build
 
 # Run tests
 pnpm test
-
-# Type checking
-pnpm type-check
 ```
 
 ## 📋 Current Status
