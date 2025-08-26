@@ -7,6 +7,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import { PrismaDatabase } from "@/database/Database.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
+import { CsvService } from "@/services/CsvService.js";
+import path from "path";
 
 // Version info
 const VERSION = "0.1.0";
@@ -22,9 +24,15 @@ ${SERVER_NAME} v${VERSION}
 A symbolic reasoning engine that serves as an MCP server for symbolic ontology operations.
 
 Usage:
-  ${SERVER_NAME}              Start the MCP server
-  ${SERVER_NAME} --help       Show this help message
-  ${SERVER_NAME} --version    Show version information
+  ${SERVER_NAME}                           Start the MCP server
+  ${SERVER_NAME} --help                    Show this help message
+  ${SERVER_NAME} --version                 Show version information
+  
+  CSV Import/Export:
+  ${SERVER_NAME} import <file.csv>         Import symbols from CSV file
+  ${SERVER_NAME} export <file.csv>         Export all symbols to CSV file
+  ${SERVER_NAME} export <file.csv> --category <name>  Export by category
+  ${SERVER_NAME} sample-csv <file.csv>     Create sample CSV file
 
 Environment Variables:
   DATABASE_URL               PostgreSQL connection string
@@ -60,7 +68,7 @@ function showVersion(): void {
 /**
  * Handle command line arguments
  */
-function handleCliArgs(): boolean {
+async function handleCliArgs(): Promise<boolean> {
   const args = process.argv.slice(2);
 
   if (args.includes("--help") || args.includes("-h")) {
@@ -73,7 +81,186 @@ function handleCliArgs(): boolean {
     return false;
   }
 
+  // Handle CSV commands
+  if (args.length > 0) {
+    const command = args[0];
+    
+    if (command === "import" && args.length >= 2) {
+      await handleImportCommand(args.slice(1));
+      return false;
+    }
+    
+    if (command === "export" && args.length >= 2) {
+      await handleExportCommand(args.slice(1));
+      return false;
+    }
+    
+    if (command === "sample-csv" && args.length >= 2) {
+      await handleSampleCsvCommand(args.slice(1));
+      return false;
+    }
+  }
+
   return true;
+}
+
+/**
+ * Handle CSV import command
+ */
+async function handleImportCommand(args: string[]): Promise<void> {
+  const filePath = args[0];
+  
+  if (!filePath) {
+    console.error('❌ Error: CSV file path is required');
+    process.exit(1);
+  }
+  
+  if (!filePath.endsWith('.csv')) {
+    console.error('❌ Error: File must have .csv extension');
+    process.exit(1);
+  }
+
+  console.log(`📥 Importing symbols from ${filePath}...`);
+  
+  try {
+    const database = new PrismaDatabase();
+    await database.connect();
+    
+    const csvService = new CsvService(database);
+    
+    const result = await csvService.importSymbols(filePath, {
+      skipDuplicates: true,
+      onProgress: (processed, total) => {
+        if (total > 10) { // Only show progress for larger files
+          process.stdout.write(`\r📊 Progress: ${processed}/${total} (${Math.round((processed/total)*100)}%)`);
+        }
+      },
+    });
+    
+    console.log('\n'); // New line after progress
+    
+    if (result.success) {
+      console.log(`✅ Import completed successfully!`);
+      console.log(`📈 Summary:`);
+      console.log(`   • Processed: ${result.processed} rows`);
+      console.log(`   • Created: ${result.created} symbols`);
+      console.log(`   • Skipped: ${result.skipped} duplicates`);
+      
+      if (result.errors.length > 0) {
+        console.log(`   • Errors: ${result.errors.length}`);
+        result.errors.slice(0, 5).forEach(err => {
+          console.log(`     Row ${err.row}: ${err.error}`);
+        });
+        if (result.errors.length > 5) {
+          console.log(`     ... and ${result.errors.length - 5} more errors`);
+        }
+      }
+    } else {
+      console.error('❌ Import failed!');
+      result.errors.forEach(err => {
+        console.error(`   Row ${err.row}: ${err.error}`);
+      });
+    }
+    
+    await database.disconnect();
+  } catch (error) {
+    console.error(`❌ Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Handle CSV export command
+ */
+async function handleExportCommand(args: string[]): Promise<void> {
+  const filePath = args[0];
+  const categoryIndex = args.indexOf('--category');
+  const category = categoryIndex !== -1 && categoryIndex + 1 < args.length ? args[categoryIndex + 1] : undefined;
+  
+  if (!filePath) {
+    console.error('❌ Error: CSV file path is required');
+    process.exit(1);
+  }
+  
+  if (!filePath.endsWith('.csv')) {
+    console.error('❌ Error: File must have .csv extension');
+    process.exit(1);
+  }
+
+  console.log(`📤 Exporting symbols to ${filePath}...`);
+  if (category) {
+    console.log(`🏷️  Filtering by category: ${category}`);
+  }
+  
+  try {
+    const database = new PrismaDatabase();
+    await database.connect();
+    
+    const csvService = new CsvService(database);
+    
+    const result = await csvService.exportSymbols({
+      filePath: path.resolve(filePath),
+      ...(category && { category }),
+      onProgress: (exported, total) => {
+        if (total > 10) {
+          process.stdout.write(`\r📊 Progress: ${exported}/${total} (${Math.round((exported/total)*100)}%)`);
+        }
+      },
+    });
+    
+    console.log('\n'); // New line after progress
+    
+    if (result.success) {
+      console.log(`✅ Export completed successfully!`);
+      console.log(`📄 Exported ${result.exported} symbols to ${result.filePath}`);
+    } else {
+      console.error(`❌ Export failed: ${result.error}`);
+      process.exit(1);
+    }
+    
+    await database.disconnect();
+  } catch (error) {
+    console.error(`❌ Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Handle sample CSV creation command
+ */
+async function handleSampleCsvCommand(args: string[]): Promise<void> {
+  const filePath = args[0];
+  
+  if (!filePath) {
+    console.error('❌ Error: CSV file path is required');
+    process.exit(1);
+  }
+  
+  if (!filePath.endsWith('.csv')) {
+    console.error('❌ Error: File must have .csv extension');
+    process.exit(1);
+  }
+
+  console.log(`📝 Creating sample CSV file at ${filePath}...`);
+  
+  try {
+    const database = new PrismaDatabase(); // Not used but needed for service
+    const csvService = new CsvService(database);
+    
+    const success = await csvService.createSampleCsv(path.resolve(filePath));
+    
+    if (success) {
+      console.log(`✅ Sample CSV file created successfully!`);
+      console.log(`📄 File location: ${path.resolve(filePath)}`);
+      console.log(`💡 Use this file as a template for importing your own symbols.`);
+    } else {
+      console.error(`❌ Failed to create sample CSV file`);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error(`❌ Sample creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exit(1);
+  }
 }
 
 /**
@@ -82,7 +269,7 @@ function handleCliArgs(): boolean {
 async function main(): Promise<void> {
   try {
     // Handle CLI arguments
-    if (!handleCliArgs()) {
+    if (!(await handleCliArgs())) {
       process.exit(0);
     }
 
