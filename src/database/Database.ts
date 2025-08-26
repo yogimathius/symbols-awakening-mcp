@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 import type {
   QueryOptions,
@@ -69,6 +69,31 @@ export interface IDatabase {
    * Health check for database connection
    */
   healthCheck(): Promise<QueryResult<{ status: string; timestamp: Date }>>;
+
+  /**
+   * Create a new symbol
+   */
+  createSymbol(symbol: Omit<Symbol, 'created_at' | 'updated_at'>): Promise<QueryResult<Symbol>>;
+
+  /**
+   * Update an existing symbol
+   */
+  updateSymbol(id: string, updates: Partial<Omit<Symbol, 'id' | 'created_at' | 'updated_at'>>): Promise<QueryResult<Symbol>>;
+
+  /**
+   * Delete a symbol by ID
+   */
+  deleteSymbol(id: string, cascade?: boolean): Promise<QueryResult<boolean>>;
+
+  /**
+   * Create a new symbol set
+   */
+  createSymbolSet(symbolSet: Omit<SymbolSet, 'created_at' | 'updated_at'>): Promise<QueryResult<SymbolSet>>;
+
+  /**
+   * Update an existing symbol set
+   */
+  updateSymbolSet(id: string, updates: Partial<Omit<SymbolSet, 'id' | 'created_at' | 'updated_at'>>): Promise<QueryResult<SymbolSet>>;
 }
 
 /**
@@ -298,6 +323,169 @@ export class PrismaDatabase implements IDatabase {
           timestamp: new Date(),
         },
       };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async createSymbol(symbol: Omit<Symbol, 'created_at' | 'updated_at'>): Promise<QueryResult<Symbol>> {
+    try {
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
+
+      const createdSymbol = await this.prisma.symbol.create({
+        data: {
+          id: symbol.id,
+          name: symbol.name,
+          category: symbol.category,
+          description: symbol.description,
+          interpretations: symbol.interpretations as Prisma.InputJsonValue,
+          related_symbols: symbol.related_symbols,
+          properties: symbol.properties as Prisma.InputJsonValue,
+        },
+      });
+
+      return { success: true, data: createdSymbol as Symbol };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Unique constraint')) {
+        return { success: false, error: new Error(`Symbol with ID "${symbol.id}" already exists`) };
+      }
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async updateSymbol(id: string, updates: Partial<Omit<Symbol, 'id' | 'created_at' | 'updated_at'>>): Promise<QueryResult<Symbol>> {
+    try {
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
+
+      // Check if symbol exists
+      const existingSymbol = await this.prisma.symbol.findUnique({
+        where: { id },
+      });
+
+      if (!existingSymbol) {
+        return { success: false, error: new Error(`Symbol with ID "${id}" not found`) };
+      }
+
+      const updatedSymbol = await this.prisma.symbol.update({
+        where: { id },
+        data: {
+          ...(updates as Prisma.SymbolUpdateInput),
+          updated_at: new Date(),
+        },
+      });
+
+      return { success: true, data: updatedSymbol as Symbol };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async deleteSymbol(id: string, cascade: boolean = false): Promise<QueryResult<boolean>> {
+    try {
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
+
+      // Check if symbol exists
+      const existingSymbol = await this.prisma.symbol.findUnique({
+        where: { id },
+      });
+
+      if (!existingSymbol) {
+        return { success: false, error: new Error(`Symbol with ID "${id}" not found`) };
+      }
+
+      // If cascade is true, remove this symbol from related_symbols arrays
+      if (cascade) {
+        // Find all symbols that reference this symbol
+        const referencingSymbols = await this.prisma.symbol.findMany({
+          where: {
+            related_symbols: {
+              has: id,
+            },
+          },
+        });
+
+        // Update each referencing symbol to remove this ID
+        for (const refSymbol of referencingSymbols) {
+          const updatedRelatedSymbols = (refSymbol.related_symbols as string[]).filter(
+            (relatedId) => relatedId !== id
+          );
+          
+          await this.prisma.symbol.update({
+            where: { id: refSymbol.id },
+            data: {
+              related_symbols: updatedRelatedSymbols,
+              updated_at: new Date(),
+            },
+          });
+        }
+      }
+
+      // Delete the symbol
+      await this.prisma.symbol.delete({
+        where: { id },
+      });
+
+      return { success: true, data: true };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async createSymbolSet(symbolSet: Omit<SymbolSet, 'created_at' | 'updated_at'>): Promise<QueryResult<SymbolSet>> {
+    try {
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
+
+      const createdSymbolSet = await this.prisma.symbolSet.create({
+        data: {
+          id: symbolSet.id,
+          name: symbolSet.name,
+          category: symbolSet.category,
+          description: symbolSet.description,
+          symbols: symbolSet.symbols as Prisma.InputJsonValue,
+        },
+      });
+
+      return { success: true, data: createdSymbolSet as SymbolSet };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Unique constraint')) {
+        return { success: false, error: new Error(`Symbol set with ID "${symbolSet.id}" already exists`) };
+      }
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async updateSymbolSet(id: string, updates: Partial<Omit<SymbolSet, 'id' | 'created_at' | 'updated_at'>>): Promise<QueryResult<SymbolSet>> {
+    try {
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
+
+      // Check if symbol set exists
+      const existingSymbolSet = await this.prisma.symbolSet.findUnique({
+        where: { id },
+      });
+
+      if (!existingSymbolSet) {
+        return { success: false, error: new Error(`Symbol set with ID "${id}" not found`) };
+      }
+
+      const updatedSymbolSet = await this.prisma.symbolSet.update({
+        where: { id },
+        data: {
+          ...(updates as Prisma.SymbolSetUpdateInput),
+          updated_at: new Date(),
+        },
+      });
+
+      return { success: true, data: updatedSymbolSet as SymbolSet };
     } catch (error) {
       return { success: false, error: error as Error };
     }

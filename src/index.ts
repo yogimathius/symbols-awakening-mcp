@@ -31,12 +31,20 @@ Environment Variables:
   NODE_ENV                  Environment (development, production, test)
 
 MCP Tools Available:
+  Read-only tools:
   • get_symbols              List symbols with optional limit
   • search_symbols           Search symbols by text query
   • filter_by_category       Filter symbols by category
   • get_categories          Get all available categories
   • get_symbol_sets         List symbol sets with optional limit
   • search_symbol_sets      Search symbol sets by text query
+  
+  Symbol management tools:
+  • create_symbol           Create a new symbol
+  • update_symbol           Update an existing symbol
+  • delete_symbol           Delete a symbol (with optional cascade)
+  • create_symbol_set       Create a new symbol set
+  • update_symbol_set       Update an existing symbol set
 
 For more information, visit: https://github.com/yogimathius/symbols-awakening-mcp
 `);
@@ -138,6 +146,11 @@ async function main(): Promise<void> {
                     "get_categories",
                     "get_symbol_sets",
                     "search_symbol_sets",
+                    "create_symbol",
+                    "update_symbol",
+                    "delete_symbol",
+                    "create_symbol_set",
+                    "update_symbol_set",
                   ],
                   message:
                     "Symbols Awakening MCP Server is operational with Prisma",

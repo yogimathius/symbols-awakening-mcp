@@ -22,6 +22,12 @@ const mockDatabase: IDatabase = {
   getSymbolSets: vi.fn(),
   searchSymbolSets: vi.fn(),
   healthCheck: vi.fn(),
+  // CRUD operations
+  createSymbol: vi.fn(),
+  updateSymbol: vi.fn(),
+  deleteSymbol: vi.fn(),
+  createSymbolSet: vi.fn(),
+  updateSymbolSet: vi.fn(),
 };
 
 describe("SymbolsService", () => {
@@ -82,19 +88,28 @@ describe("SymbolsService", () => {
   });
 
   describe("registerTools", () => {
-    it("should register all 6 required tools", () => {
+    it("should register all 11 required tools", () => {
       service.registerTools();
 
-      expect(mockServer.tool).toHaveBeenCalledTimes(6);
+      expect(mockServer.tool).toHaveBeenCalledTimes(11);
 
       // Verify all tool names are registered
       const registeredTools = mockServer.tool.mock.calls.map((call) => call[0]);
+      
+      // Read-only tools
       expect(registeredTools).toContain("get_symbols");
       expect(registeredTools).toContain("search_symbols");
       expect(registeredTools).toContain("filter_by_category");
       expect(registeredTools).toContain("get_categories");
       expect(registeredTools).toContain("get_symbol_sets");
       expect(registeredTools).toContain("search_symbol_sets");
+      
+      // CRUD tools
+      expect(registeredTools).toContain("create_symbol");
+      expect(registeredTools).toContain("update_symbol");
+      expect(registeredTools).toContain("delete_symbol");
+      expect(registeredTools).toContain("create_symbol_set");
+      expect(registeredTools).toContain("update_symbol_set");
     });
 
     it("should register tools with correct descriptions", () => {
@@ -411,6 +426,225 @@ describe("SymbolsService", () => {
 
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.error).toBe("Search query cannot be empty");
+      });
+    });
+
+    describe("create_symbol tool", () => {
+      it("should create a new symbol successfully", async () => {
+        const newSymbol = {
+          ...mockSymbol,
+          id: "new-symbol",
+          name: "New Test Symbol",
+        };
+
+        vi.mocked(mockDatabase.createSymbol).mockResolvedValueOnce({
+          success: true,
+          data: newSymbol,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "create_symbol"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "new-symbol",
+          name: "New Test Symbol",
+          category: "test",
+          description: "A new test symbol",
+          interpretations: { test: "test interpretation" },
+          related_symbols: ["test-symbol-2"],
+          properties: { test: true },
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(true);
+        expect(responseData.symbol).toEqual({
+          ...newSymbol,
+          created_at: fixedDate.toISOString(),
+          updated_at: fixedDate.toISOString(),
+        });
+        expect(responseData.message).toContain('Successfully created symbol "New Test Symbol"');
+      });
+
+      it("should handle create symbol failure", async () => {
+        vi.mocked(mockDatabase.createSymbol).mockResolvedValueOnce({
+          success: false,
+          error: new Error("Symbol already exists"),
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "create_symbol"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "existing-symbol",
+          name: "Existing Symbol",
+          category: "test",
+          description: "A test symbol",
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(false);
+        expect(responseData.error).toBe("Symbol already exists");
+      });
+    });
+
+    describe("update_symbol tool", () => {
+      it("should update an existing symbol successfully", async () => {
+        const updatedSymbol = {
+          ...mockSymbol,
+          name: "Updated Test Symbol",
+        };
+
+        vi.mocked(mockDatabase.updateSymbol).mockResolvedValueOnce({
+          success: true,
+          data: updatedSymbol,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "update_symbol"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "test-symbol-1",
+          name: "Updated Test Symbol",
+          description: "Updated description",
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(true);
+        expect(responseData.symbol).toEqual({
+          ...updatedSymbol,
+          created_at: fixedDate.toISOString(),
+          updated_at: fixedDate.toISOString(),
+        });
+        expect(mockDatabase.updateSymbol).toHaveBeenCalledWith("test-symbol-1", {
+          name: "Updated Test Symbol",
+          description: "Updated description",
+        });
+      });
+
+      it("should handle update symbol failure", async () => {
+        vi.mocked(mockDatabase.updateSymbol).mockResolvedValueOnce({
+          success: false,
+          error: new Error("Symbol not found"),
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "update_symbol"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "nonexistent-symbol",
+          name: "Updated Name",
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(false);
+        expect(responseData.error).toBe("Symbol not found");
+      });
+    });
+
+    describe("delete_symbol tool", () => {
+      it("should delete a symbol successfully", async () => {
+        vi.mocked(mockDatabase.deleteSymbol).mockResolvedValueOnce({
+          success: true,
+          data: true,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "delete_symbol"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "test-symbol-1",
+          cascade: false,
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(true);
+        expect(responseData.deleted).toBe(true);
+        expect(responseData.message).toBe('Successfully deleted symbol "test-symbol-1"');
+        expect(mockDatabase.deleteSymbol).toHaveBeenCalledWith("test-symbol-1", false);
+      });
+
+      it("should delete a symbol with cascade", async () => {
+        vi.mocked(mockDatabase.deleteSymbol).mockResolvedValueOnce({
+          success: true,
+          data: true,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "delete_symbol"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "test-symbol-1",
+          cascade: true,
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(true);
+        expect(responseData.message).toContain("removed it from related symbols");
+        expect(mockDatabase.deleteSymbol).toHaveBeenCalledWith("test-symbol-1", true);
+      });
+    });
+
+    describe("create_symbol_set tool", () => {
+      it("should create a new symbol set successfully", async () => {
+        const newSymbolSet = {
+          ...mockSymbolSet,
+          id: "new-symbol-set",
+          name: "New Test Set",
+        };
+
+        vi.mocked(mockDatabase.createSymbolSet).mockResolvedValueOnce({
+          success: true,
+          data: newSymbolSet,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "create_symbol_set"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "new-symbol-set",
+          name: "New Test Set",
+          category: "test",
+          description: "A new test symbol set",
+          symbols: { "test-symbol-1": { weight: 1.0 } },
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(true);
+        expect(responseData.symbol_set).toEqual({
+          ...newSymbolSet,
+          created_at: fixedDate.toISOString(),
+          updated_at: fixedDate.toISOString(),
+        });
+      });
+    });
+
+    describe("update_symbol_set tool", () => {
+      it("should update an existing symbol set successfully", async () => {
+        const updatedSymbolSet = {
+          ...mockSymbolSet,
+          name: "Updated Test Set",
+        };
+
+        vi.mocked(mockDatabase.updateSymbolSet).mockResolvedValueOnce({
+          success: true,
+          data: updatedSymbolSet,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "update_symbol_set"
+        )?.[3];
+        const result = await toolHandler?.({
+          id: "test-set-1",
+          name: "Updated Test Set",
+        });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.success).toBe(true);
+        expect(responseData.symbol_set).toEqual({
+          ...updatedSymbolSet,
+          created_at: fixedDate.toISOString(),
+          updated_at: fixedDate.toISOString(),
+        });
       });
     });
   });
