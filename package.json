@@ -1,6 +1,6 @@
 {
   "name": "symbols-awakening-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "mcpName": "io.github.yogimathius/symbols-awakening-mcp",
   "description": "A symbolic reasoning engine that serves as an MCP server for symbolic ontology operations",
   "type": "module",
