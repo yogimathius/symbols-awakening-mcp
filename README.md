@@ -1,5 +1,7 @@
 # Symbols Awakening MCP
 
+[![MCP Badge](https://lobehub.com/badge/mcp/yogimathius-symbols-awakening-mcp)](https://lobehub.com/mcp/yogimathius-symbols-awakening-mcp)
+
 A symbolic reasoning engine that serves as a Model Context Protocol (MCP) server for symbolic ontology operations.
 
 ## 🚀 Quick Start
@@ -87,31 +89,15 @@ pnpm test
 
 ## 📋 Current Status
 
-### ✅ Completed Features
+### ✅ Implemented Features
 
-- **Project Setup**: Modern TypeScript project with Vite and Vitest
+- **MCP Server**: Full MCP server with stdio transport
+- **Database Layer**: PostgreSQL + Prisma with schema, indexes, and migrations via `prisma db push`
+- **MCP Tools**: Read, search, and CRUD operations for symbols and symbol sets
+- **CSV Import/Export**: Import symbols from CSV and export to CSV with optional category filter
 - **CLI Binary**: Executable via `npx symbols-awakening-mcp`
-- **MCP Server**: Basic MCP server with stdio transport
-- **Type System**: Comprehensive TypeScript interfaces for Symbol ontology
-- **Testing**: Vitest test framework with coverage reporting
-- **Build System**: Vite-based build with proper CLI binary generation
-- **Development Tools**: ESLint, TypeScript strict mode, hot reload
-
-### 🔄 In Progress
-
-- Database layer implementation
-- Core MCP tools (get_symbols, search_symbols, etc.)
-- PostgreSQL integration
-- Data import/export functionality
-
-### 📝 Planned Features
-
-- Symbol ontology database operations
-- Full-text search capabilities
-- Category-based filtering
-- Symbol relationship mapping
-- REST API (optional)
-- Data seeding and CSV import
+- **Testing**: Unit tests for database, MCP tools, and CSV services
+- **REST API**: Express-based API scaffold with health/test endpoints and Swagger docs
 
 ## 🛠 Technology Stack
 
@@ -119,7 +105,7 @@ pnpm test
 - **Language**: TypeScript (strict mode)
 - **Build Tool**: Vite
 - **Testing**: Vitest with coverage
-- **Database**: PostgreSQL (planned)
+- **Database**: PostgreSQL + Prisma
 - **Protocol**: Model Context Protocol (MCP)
 - **Transport**: Stdio (for CLI usage)
 
@@ -136,6 +122,15 @@ symbols-awakening-mcp --version
 
 # Start MCP server (default)
 symbols-awakening-mcp
+
+# Start REST API server
+symbols-awakening-mcp --api
+
+# CSV Import/Export
+symbols-awakening-mcp import ./data/symbols.csv
+symbols-awakening-mcp export ./data/symbols.csv
+symbols-awakening-mcp export ./data/symbols.csv --category archetype
+symbols-awakening-mcp sample-csv ./data/sample.csv
 ```
 
 ### MCP Integration
@@ -184,6 +179,28 @@ pnpm test:coverage
 pnpm test:ui
 ```
 
+## 🌐 REST API
+
+Start the API server:
+
+```bash
+symbols-awakening-mcp --api
+```
+
+By default it runs on `http://localhost:3000` and exposes:
+
+- `/api/health` for basic health checks
+- `/api/test` for API smoke tests
+- `/api/docs` for Swagger UI
+
+Symbol and symbol-set routes are scaffolded but currently disabled in code while type issues are resolved.
+
+## 🧩 Skills, Prompts, Resources
+
+- Skills are documented under `skills/` for LobeHub discovery.
+- Prompts: `analyze-symbol`, `curate-symbol-set`
+- Resources: `symbols://categories`, `symbols://category/{category}`
+
 ## 🏗 Development
 
 ### Project Structure
@@ -192,11 +209,13 @@ pnpm test:ui
 symbols-awakening-mcp/
 ├── src/
 │   ├── __tests__/          # Test setup and utilities
+│   ├── api/                # REST API server and routes
+│   ├── database/           # Prisma database layer
 │   ├── types/              # TypeScript interfaces
 │   │   ├── Symbol.ts       # Core symbol types
 │   │   └── Symbol.test.ts  # Type tests
-│   ├── database/           # Database layer (planned)
-│   ├── mcp/               # MCP server implementation (planned)
+│   ├── mcp/                # MCP server implementation
+│   ├── services/           # CSV import/export services
 │   └── index.ts           # CLI entry point
 ├── dist/                  # Built output
 ├── docs/                  # Documentation
@@ -271,7 +290,9 @@ interface SymbolSet {
 }
 ```
 
-### MCP Tools (Planned)
+### MCP Tools
+
+Read-only tools:
 
 - `get_symbols` - List symbols with optional limit
 - `search_symbols` - Search symbols by text query
@@ -279,6 +300,14 @@ interface SymbolSet {
 - `get_categories` - Get all available categories
 - `get_symbol_sets` - List symbol sets
 - `search_symbol_sets` - Search symbol sets
+
+Symbol management tools:
+
+- `create_symbol` - Create a new symbol
+- `update_symbol` - Update an existing symbol
+- `delete_symbol` - Delete a symbol (with optional cascade)
+- `create_symbol_set` - Create a new symbol set
+- `update_symbol_set` - Update an existing symbol set
 
 ## 🤝 Contributing
 
