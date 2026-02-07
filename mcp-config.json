@@ -5,7 +5,7 @@
       "args": [
         "dist/index.js"
       ],
-      "cwd": "/Users/mathiusjohnson/projects/build/symbols-awakening-mcp"
+      "cwd": "/Users/mathiusjohnson/projects/build/integration-tools/symbols-awakening-mcp"
     }
   }
 }
