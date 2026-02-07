@@ -7,6 +7,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 import { PrismaDatabase } from "@/database/Database.js";
+import { DemoDatabase } from "@/database/DemoDatabase.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
 import { CsvService } from "@/services/CsvService.js";
 import { ApiServer } from "@/api/ApiServer.js";
@@ -28,6 +29,7 @@ A symbolic reasoning engine that serves as an MCP server for symbolic ontology o
 Usage:
   ${SERVER_NAME}                           Start the MCP server (default)
   ${SERVER_NAME} --api                     Start the REST API server
+  ${SERVER_NAME} --demo                    Start in demo mode (no Postgres required)
   ${SERVER_NAME} --help                    Show this help message
   ${SERVER_NAME} --version                 Show version information
   
@@ -39,10 +41,11 @@ Usage:
 
 Environment Variables:
   DATABASE_URL               PostgreSQL connection string
+  DEMO_MODE                 Set to true/1 to use demo mode
   NODE_ENV                  Environment (development, production, test)
   PORT                      Port for REST API server (default: 3000)
 
-MCP Tools Available:
+  MCP Tools Available:
   Read-only tools:
   • get_symbols              List symbols with optional limit
   • get_symbol              Get a symbol by ID
@@ -280,36 +283,46 @@ async function main(): Promise<void> {
 
     // Check if we should start the REST API server
     const startApiServer = process.argv.includes('--api');
+    const demoMode = isDemoMode();
     
     if (startApiServer) {
-      await startRestApiServer();
+      await startRestApiServer(demoMode);
       return;
     }
 
     // Default: start MCP server
-    await startMcpServer();
+    await startMcpServer(demoMode);
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
   }
 }
 
+function isDemoMode(): boolean {
+  const envFlag = process.env.DEMO_MODE?.toLowerCase();
+  return process.argv.includes("--demo") || envFlag === "true" || envFlag === "1";
+}
+
 /**
  * Start the REST API server
  */
-async function startRestApiServer(): Promise<void> {
+async function startRestApiServer(demoMode: boolean): Promise<void> {
   console.error('🚀 Starting REST API server...');
   
-  // Initialize database with Prisma
-  const database = new PrismaDatabase();
+  // Initialize database
+  const database = demoMode ? new DemoDatabase() : new PrismaDatabase();
   
-  // Connect to database
-  try {
-    await database.connect();
-  } catch (error) {
-    console.error(`❌ Database connection failed: ${(error as Error).message}`);
-    console.error('REST API server requires database connection');
-    process.exit(1);
+  if (!demoMode) {
+    // Connect to database
+    try {
+      await database.connect();
+    } catch (error) {
+      console.error(`❌ Database connection failed: ${(error as Error).message}`);
+      console.error('REST API server requires database connection');
+      process.exit(1);
+    }
+  } else {
+    console.error("🧪 Demo mode enabled for REST API server");
   }
 
   // Create and start API server
@@ -347,7 +360,7 @@ async function startRestApiServer(): Promise<void> {
 /**
  * Start the MCP server
  */
-async function startMcpServer(): Promise<void> {
+async function startMcpServer(demoMode: boolean): Promise<void> {
   try {
     console.error('🚀 Starting MCP server...');
 
@@ -366,19 +379,23 @@ async function startMcpServer(): Promise<void> {
       }
     );
 
-    // Initialize database with Prisma
-    const database = new PrismaDatabase();
+    // Initialize database
+    const database = demoMode ? new DemoDatabase() : new PrismaDatabase();
 
-    // Try to connect to database (graceful degradation if not available)
-    try {
-      await database.connect();
-    } catch (error) {
-      console.error(
-        `⚠ Database connection failed: ${(error as Error).message}`
-      );
-      console.error(
-        `⚠ MCP server will start but tools may not function without database`
-      );
+    if (!demoMode) {
+      // Try to connect to database (graceful degradation if not available)
+      try {
+        await database.connect();
+      } catch (error) {
+        console.error(
+          `⚠ Database connection failed: ${(error as Error).message}`
+        );
+        console.error(
+          `⚠ MCP server will start but tools may not function without database`
+        );
+      }
+    } else {
+      console.error("🧪 Demo mode enabled (using bundled dataset)");
     }
 
     // Set up symbols service with all MCP tools
@@ -564,6 +581,7 @@ async function startMcpServer(): Promise<void> {
                     ? "connected"
                     : "disconnected",
                   database_error: healthCheck.error?.message,
+                  demo_mode: demoMode,
                   capabilities: [
                     "get_symbols",
                     "get_symbol",

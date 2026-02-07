@@ -1,0 +1,134 @@
+{
+  "symbols": [
+    {
+      "id": "ouroboros",
+      "name": "Ouroboros",
+      "category": "transformation",
+      "description": "A serpent or dragon eating its tail, symbolizing cycles, renewal, and the unity of opposites.",
+      "interpretations": {
+        "dream": "Recurring cycles or a need to break a loop",
+        "mythic": "Eternal return and self-containment"
+      },
+      "related_symbols": ["infinity", "mandala"],
+      "properties": {
+        "origin": "ancient",
+        "polarity": "dual"
+      }
+    },
+    {
+      "id": "mandala",
+      "name": "Mandala",
+      "category": "wholeness",
+      "description": "A circular geometric figure representing the universe, integration, and balance.",
+      "interpretations": {
+        "dream": "Desire for order or psychological integration",
+        "ritual": "Centering and focus"
+      },
+      "related_symbols": ["ouroboros", "circle"],
+      "properties": {
+        "origin": "sacred",
+        "structure": "radial"
+      }
+    },
+    {
+      "id": "labyrinth",
+      "name": "Labyrinth",
+      "category": "journey",
+      "description": "A winding path symbolizing initiation, inner journey, and transformation.",
+      "interpretations": {
+        "dream": "Complex decision-making or inner exploration",
+        "mythic": "Trial and transformation"
+      },
+      "related_symbols": ["threshold", "key"],
+      "properties": {
+        "complexity": "high",
+        "direction": "inward"
+      }
+    },
+    {
+      "id": "mirror",
+      "name": "Mirror",
+      "category": "self",
+      "description": "A reflective surface symbolizing self-knowledge, truth, and hidden aspects.",
+      "interpretations": {
+        "dream": "Self-examination or confronting a hidden truth",
+        "ritual": "Revelation and clarity"
+      },
+      "related_symbols": ["shadow", "mask"],
+      "properties": {
+        "polarity": "revealing",
+        "surface": "reflective"
+      }
+    },
+    {
+      "id": "river",
+      "name": "River",
+      "category": "flow",
+      "description": "Flowing water representing time, transition, and emotional movement.",
+      "interpretations": {
+        "dream": "Life changes or emotional current",
+        "mythic": "Boundary between worlds"
+      },
+      "related_symbols": ["bridge", "boat"],
+      "properties": {
+        "element": "water",
+        "motion": "continuous"
+      }
+    },
+    {
+      "id": "key",
+      "name": "Key",
+      "category": "access",
+      "description": "An object that unlocks or reveals, symbolizing access, secrets, and permission.",
+      "interpretations": {
+        "dream": "New opportunity or hidden knowledge",
+        "ritual": "Opening or initiation"
+      },
+      "related_symbols": ["door", "labyrinth"],
+      "properties": {
+        "function": "unlock",
+        "state": "potential"
+      }
+    },
+    {
+      "id": "infinity",
+      "name": "Infinity",
+      "category": "boundlessness",
+      "description": "The symbol of limitless scope, eternity, and unbounded possibility.",
+      "interpretations": {
+        "dream": "Overwhelm or vast potential",
+        "mathematical": "Unbounded quantity"
+      },
+      "related_symbols": ["ouroboros", "circle"],
+      "properties": {
+        "shape": "lemniscate",
+        "polarity": "limitless"
+      }
+    }
+  ],
+  "symbol_sets": [
+    {
+      "id": "dream-journey",
+      "name": "Dream Journey",
+      "category": "journey",
+      "description": "Symbols commonly appearing in transformative dream narratives.",
+      "symbols": {
+        "labyrinth": { "weight": 1.0 },
+        "river": { "weight": 0.8 },
+        "key": { "weight": 0.7 },
+        "mirror": { "weight": 0.6 }
+      }
+    },
+    {
+      "id": "cycles-of-change",
+      "name": "Cycles of Change",
+      "category": "transformation",
+      "description": "Symbols that represent renewal, continuity, and shifting states.",
+      "symbols": {
+        "ouroboros": { "weight": 1.0 },
+        "infinity": { "weight": 0.9 },
+        "mandala": { "weight": 0.7 }
+      }
+    }
+  ]
+}

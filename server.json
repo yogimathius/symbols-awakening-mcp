@@ -25,6 +25,13 @@
           "isSecret": true
         },
         {
+          "name": "DEMO_MODE",
+          "description": "Enable demo mode without Postgres (true/1)",
+          "format": "string",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
           "name": "NODE_ENV",
           "description": "Environment (development, production, test)",
           "format": "string",
