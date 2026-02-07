@@ -11,6 +11,7 @@ const mockPrismaClient = {
   $queryRaw: vi.fn(),
   symbol: {
     findMany: vi.fn(),
+    findUnique: vi.fn(),
   },
   symbolSet: {
     findMany: vi.fn(),
@@ -156,6 +157,40 @@ describe("Database Layer", () => {
 
         expect(result.success).toBe(false);
         expect(result.error?.message).toBe("Database error");
+      });
+    });
+
+    describe("getSymbol", () => {
+      it("should return a symbol by ID", async () => {
+        mockPrismaClient.symbol.findUnique.mockResolvedValue(mockSymbol);
+
+        const result = await database.getSymbol("test-symbol-1");
+
+        expect(result.success).toBe(true);
+        expect(result.data).toEqual(mockSymbol);
+        expect(mockPrismaClient.symbol.findUnique).toHaveBeenCalledWith({
+          where: { id: "test-symbol-1" },
+        });
+      });
+
+      it("should return null when symbol is not found", async () => {
+        mockPrismaClient.symbol.findUnique.mockResolvedValue(null);
+
+        const result = await database.getSymbol("missing-symbol");
+
+        expect(result.success).toBe(true);
+        expect(result.data).toBeNull();
+      });
+
+      it("should handle database errors gracefully", async () => {
+        mockPrismaClient.symbol.findUnique.mockRejectedValue(
+          new Error("Lookup failed")
+        );
+
+        const result = await database.getSymbol("test-symbol-1");
+
+        expect(result.success).toBe(false);
+        expect(result.error?.message).toBe("Lookup failed");
       });
     });
 

@@ -17,6 +17,13 @@ export const TOOL_SCHEMAS = {
       .describe("Maximum number of symbols to return"),
   },
 
+  get_symbol: {
+    id: z
+      .string()
+      .min(1)
+      .describe("Unique identifier of the symbol to retrieve"),
+  },
+
   search_symbols: {
     query: z
       .string()
@@ -228,6 +235,7 @@ export class SymbolsService {
   registerTools(): void {
     // Read-only tools
     this.registerGetSymbols();
+    this.registerGetSymbol();
     this.registerSearchSymbols();
     this.registerFilterByCategory();
     this.registerGetCategories();
@@ -240,6 +248,83 @@ export class SymbolsService {
     this.registerDeleteSymbol();
     this.registerCreateSymbolSet();
     this.registerUpdateSymbolSet();
+  }
+
+  /**
+   * Get a symbol by ID
+   */
+  private registerGetSymbol(): void {
+    this.server.tool(
+      "get_symbol",
+      "Get a symbol by ID",
+      TOOL_SCHEMAS.get_symbol,
+      async (args) => {
+        try {
+          const { id } = args as { id: string };
+
+          if (!id.trim()) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    {
+                      error: "Symbol ID cannot be empty",
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          const result = await this.database.getSymbol(id);
+
+          if (!result.success) {
+            throw new Error(result.error?.message ?? "Failed to get symbol");
+          }
+
+          const symbol = result.data ?? null;
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    found: symbol !== null,
+                    symbol,
+                    message:
+                      symbol !== null
+                        ? `Found symbol "${id}"`
+                        : `No symbol found with ID "${id}"`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    error: "Internal error while retrieving symbol",
+                    details: (error as Error).message,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+      }
+    );
   }
 
   /**

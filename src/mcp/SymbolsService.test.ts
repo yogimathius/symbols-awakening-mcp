@@ -16,6 +16,7 @@ const mockDatabase: IDatabase = {
   connect: vi.fn(),
   disconnect: vi.fn(),
   getSymbols: vi.fn(),
+  getSymbol: vi.fn(),
   searchSymbols: vi.fn(),
   filterByCategory: vi.fn(),
   getCategories: vi.fn(),
@@ -85,19 +86,27 @@ describe("SymbolsService", () => {
       expect(typeof schema.query).toBe("object");
       expect(typeof schema.limit).toBe("object");
     });
+
+    it("should have valid Zod schema for get_symbol", () => {
+      const schema = TOOL_SCHEMAS.get_symbol;
+
+      expect(schema.id).toBeDefined();
+      expect(typeof schema.id).toBe("object");
+    });
   });
 
   describe("registerTools", () => {
-    it("should register all 11 required tools", () => {
+    it("should register all 12 required tools", () => {
       service.registerTools();
 
-      expect(mockServer.tool).toHaveBeenCalledTimes(11);
+      expect(mockServer.tool).toHaveBeenCalledTimes(12);
 
       // Verify all tool names are registered
       const registeredTools = mockServer.tool.mock.calls.map((call) => call[0]);
       
       // Read-only tools
       expect(registeredTools).toContain("get_symbols");
+      expect(registeredTools).toContain("get_symbol");
       expect(registeredTools).toContain("search_symbols");
       expect(registeredTools).toContain("filter_by_category");
       expect(registeredTools).toContain("get_categories");
@@ -119,11 +128,15 @@ describe("SymbolsService", () => {
       const getSymbolsCall = toolCalls.find(
         (call) => call[0] === "get_symbols"
       );
+      const getSymbolCall = toolCalls.find(
+        (call) => call[0] === "get_symbol"
+      );
       const searchSymbolsCall = toolCalls.find(
         (call) => call[0] === "search_symbols"
       );
 
       expect(getSymbolsCall?.[1]).toBe("List symbols with optional limit");
+      expect(getSymbolCall?.[1]).toBe("Get a symbol by ID");
       expect(searchSymbolsCall?.[1]).toContain("Search symbols by text query");
     });
 
@@ -134,11 +147,15 @@ describe("SymbolsService", () => {
       const getSymbolsCall = toolCalls.find(
         (call) => call[0] === "get_symbols"
       );
+      const getSymbolCall = toolCalls.find(
+        (call) => call[0] === "get_symbol"
+      );
       const searchSymbolsCall = toolCalls.find(
         (call) => call[0] === "search_symbols"
       );
 
       expect(getSymbolsCall?.[2]).toEqual(TOOL_SCHEMAS.get_symbols);
+      expect(getSymbolCall?.[2]).toEqual(TOOL_SCHEMAS.get_symbol);
       expect(searchSymbolsCall?.[2]).toEqual(TOOL_SCHEMAS.search_symbols);
     });
   });
@@ -240,6 +257,61 @@ describe("SymbolsService", () => {
           limit: 50,
           offset: 0,
         });
+      });
+    });
+
+    describe("get_symbol tool", () => {
+      it("should return a symbol when found", async () => {
+        vi.mocked(mockDatabase.getSymbol).mockResolvedValue({
+          success: true,
+          data: mockSymbol,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "get_symbol"
+        )?.[3];
+        const result = await toolHandler?.({ id: "test-symbol-1" });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.found).toBe(true);
+        expect(responseData.symbol).toEqual(expectedSymbol);
+        expect(responseData.message).toContain('Found symbol "test-symbol-1"');
+        expect(mockDatabase.getSymbol).toHaveBeenCalledWith("test-symbol-1");
+      });
+
+      it("should return found false when missing", async () => {
+        vi.mocked(mockDatabase.getSymbol).mockResolvedValue({
+          success: true,
+          data: null,
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "get_symbol"
+        )?.[3];
+        const result = await toolHandler?.({ id: "missing-symbol" });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.found).toBe(false);
+        expect(responseData.symbol).toBeNull();
+        expect(responseData.message).toContain(
+          'No symbol found with ID "missing-symbol"'
+        );
+      });
+
+      it("should handle database errors", async () => {
+        vi.mocked(mockDatabase.getSymbol).mockResolvedValue({
+          success: false,
+          error: new Error("Lookup failed"),
+        });
+
+        const toolHandler = mockServer.tool.mock.calls.find(
+          (call) => call[0] === "get_symbol"
+        )?.[3];
+        const result = await toolHandler?.({ id: "test-symbol-1" });
+
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.error).toBe("Internal error while retrieving symbol");
+        expect(responseData.details).toBe("Lookup failed");
       });
     });
 

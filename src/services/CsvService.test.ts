@@ -12,6 +12,7 @@ const mockDatabase: IDatabase = {
   disconnect: vi.fn(),
   initializeSchema: vi.fn(),
   getSymbols: vi.fn(),
+  getSymbol: vi.fn(),
   searchSymbols: vi.fn(),
   filterByCategory: vi.fn(),
   getCategories: vi.fn(),

@@ -45,6 +45,7 @@ Environment Variables:
 MCP Tools Available:
   Read-only tools:
   • get_symbols              List symbols with optional limit
+  • get_symbol              Get a symbol by ID
   • search_symbols           Search symbols by text query
   • filter_by_category       Filter symbols by category
   • get_categories          Get all available categories
@@ -565,6 +566,7 @@ async function startMcpServer(): Promise<void> {
                   database_error: healthCheck.error?.message,
                   capabilities: [
                     "get_symbols",
+                    "get_symbol",
                     "search_symbols",
                     "filter_by_category",
                     "get_categories",
@@ -631,7 +633,7 @@ async function startMcpServer(): Promise<void> {
       console.error(`✓ MCP server started successfully on stdio transport`);
       // eslint-disable-next-line no-console, no-undef
       console.error(
-        `✓ Available tools: get_symbols, search_symbols, filter_by_category, get_categories, get_symbol_sets, search_symbol_sets`
+        `✓ Available tools: get_symbols, get_symbol, search_symbols, filter_by_category, get_categories, get_symbol_sets, search_symbol_sets`
       );
 
       // Keep the process alive

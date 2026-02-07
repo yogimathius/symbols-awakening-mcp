@@ -32,6 +32,11 @@ export interface IDatabase {
   getSymbols(options?: QueryOptions): Promise<QueryResult<Symbol[]>>;
 
   /**
+   * Get a symbol by ID
+   */
+  getSymbol(id: string): Promise<QueryResult<Symbol | null>>;
+
+  /**
    * Search symbols by text query
    */
   searchSymbols(
@@ -167,6 +172,22 @@ export class PrismaDatabase implements IDatabase {
       });
 
       return { success: true, data: symbols as Symbol[] };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async getSymbol(id: string): Promise<QueryResult<Symbol | null>> {
+    try {
+      if (!this.prisma) {
+        throw new Error("Database not connected");
+      }
+
+      const symbol = await this.prisma.symbol.findUnique({
+        where: { id },
+      });
+
+      return { success: true, data: symbol as Symbol | null };
     } catch (error) {
       return { success: false, error: error as Error };
     }
