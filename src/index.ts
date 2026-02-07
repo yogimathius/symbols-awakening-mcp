@@ -2,8 +2,9 @@
  * Symbols Awakening MCP Server
  * CLI entry point for the symbolic ontology MCP server
  */
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
 
 import { PrismaDatabase } from "@/database/Database.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
@@ -358,6 +359,8 @@ async function startMcpServer(): Promise<void> {
       {
         capabilities: {
           tools: {},
+          prompts: {},
+          resources: {},
         },
       }
     );
@@ -380,6 +383,164 @@ async function startMcpServer(): Promise<void> {
     // Set up symbols service with all MCP tools
     const symbolsService = new SymbolsService(server, database);
     symbolsService.registerTools();
+
+    // Resources for contextual data access
+    server.resource(
+      "symbols-categories",
+      "symbols://categories",
+      async (uri) => {
+        const result = await database.getCategories();
+
+        if (!result.success) {
+          return {
+            contents: [
+              {
+                uri: uri.href,
+                text: JSON.stringify(
+                  {
+                    error: "Database not available",
+                    message: result.error?.message ?? "Unknown database error",
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: JSON.stringify(
+                {
+                  categories: result.data ?? [],
+                  total: result.data?.length ?? 0,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+    );
+
+    server.resource(
+      "symbols-by-category",
+      new ResourceTemplate("symbols://category/{category}", { list: undefined }),
+      async (uri, { category }) => {
+        const result = await database.filterByCategory(category, { limit: 20 });
+
+        if (!result.success) {
+          return {
+            contents: [
+              {
+                uri: uri.href,
+                text: JSON.stringify(
+                  {
+                    category,
+                    error: "Database not available",
+                    message: result.error?.message ?? "Unknown database error",
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: JSON.stringify(
+                {
+                  category,
+                  limit: 20,
+                  symbols: result.data ?? [],
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+    );
+
+    // Prompts for guided workflows
+    server.prompt(
+      "analyze-symbol",
+      {
+        symbol: z.string().min(1).describe("Symbol name or ID to analyze"),
+        focus: z
+          .string()
+          .optional()
+          .describe("Optional focus area (history, meaning, usage, etc.)"),
+      },
+      ({ symbol, focus }) => ({
+        messages: [
+          {
+            role: "system",
+            content: {
+              type: "text",
+              text:
+                "You are a symbolic ontology assistant. Use MCP tools to retrieve authoritative details before answering.",
+            },
+          },
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: [
+                `Analyze the symbol "${symbol}".`,
+                focus ? `Focus area: ${focus}.` : "Include meaning, category, and related symbols.",
+                "Use MCP tools (search_symbols, get_symbols, filter_by_category) to gather data before responding.",
+              ].join("\n"),
+            },
+          },
+        ],
+      })
+    );
+
+    server.prompt(
+      "curate-symbol-set",
+      {
+        theme: z.string().min(1).describe("Theme or purpose for the symbol set"),
+        max_items: z
+          .number()
+          .min(3)
+          .max(20)
+          .default(8)
+          .describe("Maximum number of symbols to include"),
+      },
+      ({ theme, max_items }) => ({
+        messages: [
+          {
+            role: "system",
+            content: {
+              type: "text",
+              text:
+                "You are curating symbol sets using the MCP tools and database resources. Prefer existing symbols.",
+            },
+          },
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: [
+                `Create a symbol set for theme: "${theme}".`,
+                `Limit to ${max_items} symbols.`,
+                "Use MCP tools to find candidate symbols and propose a brief rationale for each.",
+              ].join("\n"),
+            },
+          },
+        ],
+      })
+    );
 
     // Add server info tool for debugging
     server.tool(
