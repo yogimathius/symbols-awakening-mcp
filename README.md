@@ -16,6 +16,9 @@ npx symbols-awakening-mcp --version
 
 # Start MCP server (for use with Claude Desktop, Cursor, etc.)
 npx symbols-awakening-mcp
+
+# Start MCP server in demo mode (no Postgres required)
+npx symbols-awakening-mcp --demo
 ```
 
 **Global installation:**
@@ -26,6 +29,7 @@ npm install -g symbols-awakening-mcp
 # Use anywhere
 symbols-awakening-mcp --help
 symbols-awakening-mcp
+symbols-awakening-mcp --demo
 ```
 
 ### MCP Client Configuration
@@ -37,9 +41,10 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "symbols-awakening": {
       "command": "npx",
-      "args": ["-y", "symbols-awakening-mcp"],
-      "env": {
-        "DATABASE_URL": "postgresql://user:password@localhost:5432/symbols_db"
+    "args": ["-y", "symbols-awakening-mcp"],
+    "env": {
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/symbols_db",
+        "DEMO_MODE": "false"
       }
     }
   }
@@ -54,7 +59,8 @@ Add to your MCP configuration:
     "command": "npx",
     "args": ["-y", "symbols-awakening-mcp"],
     "env": {
-      "DATABASE_URL": "postgresql://user:password@localhost:5432/symbols_db"
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/symbols_db",
+        "DEMO_MODE": "false"
     }
   }
 }
@@ -122,6 +128,9 @@ symbols-awakening-mcp --version
 
 # Start MCP server (default)
 symbols-awakening-mcp
+
+# Start MCP server in demo mode (no Postgres required)
+symbols-awakening-mcp --demo
 
 # Start REST API server
 symbols-awakening-mcp --api
@@ -295,6 +304,7 @@ interface SymbolSet {
 Read-only tools:
 
 - `get_symbols` - List symbols with optional limit
+- `get_symbol` - Get a symbol by ID
 - `search_symbols` - Search symbols by text query
 - `filter_by_category` - Filter symbols by category
 - `get_categories` - Get all available categories
@@ -308,6 +318,92 @@ Symbol management tools:
 - `delete_symbol` - Delete a symbol (with optional cascade)
 - `create_symbol_set` - Create a new symbol set
 - `update_symbol_set` - Update an existing symbol set
+
+### Tooling Contract
+
+Tools return JSON in `content[0].text`. Dates are ISO-8601 strings.
+
+Core tools and arguments:
+
+- `get_symbol` with `{ id: string }`
+- `search_symbols` with `{ query: string, limit?: number }`
+- `get_symbols` with `{ limit?: number }`
+- `filter_by_category` with `{ category: string, limit?: number }`
+- `get_categories` with `{}`
+- `get_symbol_sets` with `{ limit?: number }`
+- `search_symbol_sets` with `{ query: string, limit?: number }`
+
+Example: `get_symbol`
+
+```json
+{
+  "id": "ouroboros"
+}
+```
+
+Example response:
+
+```json
+{
+  "found": true,
+  "symbol": {
+    "id": "ouroboros",
+    "name": "Ouroboros",
+    "category": "transformation",
+    "description": "A serpent or dragon eating its tail, symbolizing cycles, renewal, and the unity of opposites.",
+    "interpretations": {
+      "dream": "Recurring cycles or a need to break a loop",
+      "mythic": "Eternal return and self-containment"
+    },
+    "related_symbols": ["infinity", "mandala"],
+    "properties": {
+      "origin": "ancient",
+      "polarity": "dual"
+    },
+    "created_at": "2026-02-07T00:00:00.000Z",
+    "updated_at": "2026-02-07T00:00:00.000Z"
+  },
+  "message": "Found symbol \"ouroboros\""
+}
+```
+
+Example: `search_symbols`
+
+```json
+{
+  "query": "river",
+  "limit": 5
+}
+```
+
+Example response:
+
+```json
+{
+  "symbols": [
+    {
+      "id": "river",
+      "name": "River",
+      "category": "flow",
+      "description": "Flowing water representing time, transition, and emotional movement.",
+      "interpretations": {
+        "dream": "Life changes or emotional current",
+        "mythic": "Boundary between worlds"
+      },
+      "related_symbols": ["bridge", "boat"],
+      "properties": {
+        "element": "water",
+        "motion": "continuous"
+      },
+      "created_at": "2026-02-07T00:00:00.000Z",
+      "updated_at": "2026-02-07T00:00:00.000Z"
+    }
+  ],
+  "count": 1,
+  "query": "river",
+  "message": "Found 1 symbols matching \"river\""
+}
+```
 
 ## 🤝 Contributing
 
