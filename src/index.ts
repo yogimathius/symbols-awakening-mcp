@@ -10,7 +10,6 @@ import { PrismaDatabase } from "@/database/Database.js";
 import { DemoDatabase } from "@/database/DemoDatabase.js";
 import { SymbolsService } from "@/mcp/SymbolsService.js";
 import { CsvService } from "@/services/CsvService.js";
-import { ApiServer } from "@/api/ApiServer.js";
 import path from "path";
 
 // Version info
@@ -308,7 +307,9 @@ function isDemoMode(): boolean {
  */
 async function startRestApiServer(demoMode: boolean): Promise<void> {
   console.error('🚀 Starting REST API server...');
-  
+
+  const { ApiServer } = await import("@/api/ApiServer.js");
+
   // Initialize database
   const database = demoMode ? new DemoDatabase() : new PrismaDatabase();
   
