@@ -125,8 +125,8 @@ the same functionality for AI assistants and automation tools.
             url: 'https://github.com/yogimathius/symbols-awakening-mcp',
           },
           license: {
-            name: 'MIT',
-            url: 'https://opensource.org/licenses/MIT',
+            name: 'MPL-2.0',
+            url: 'https://opensource.org/licenses/MPL-2.0',
           },
         },
         servers: [

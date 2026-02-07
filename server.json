@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.yogimathius/symbols-awakening-mcp",
+  "title": "Symbols Awakening",
+  "description": "Symbol ontology MCP server with search, CRUD, and CSV import/export.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/yogimathius/symbols-awakening-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "symbols-awakening-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "DATABASE_URL",
+          "description": "PostgreSQL connection string",
+          "format": "string",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "NODE_ENV",
+          "description": "Environment (development, production, test)",
+          "format": "string",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "PORT",
+          "description": "REST API port (default: 3000)",
+          "format": "number",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
