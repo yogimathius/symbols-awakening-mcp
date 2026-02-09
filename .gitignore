@@ -119,3 +119,6 @@ yarn.lock
 .local/
 .cache/ 
 /src/generated/prisma
+
+# Local reference clones
+reference/
