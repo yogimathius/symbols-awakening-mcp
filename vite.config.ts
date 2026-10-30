@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
+import { builtinModules } from "node:module";
 
 export default defineConfig({
   // Build configuration for Node.js CLI
@@ -11,36 +12,12 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      external: [
-        // Node.js built-ins
-        "fs",
-        "path",
-        "url",
-        "child_process",
-        "crypto",
-        "os",
-        "util",
-        "stream",
-        "events",
-        "buffer",
-        "querystring",
-        "net",
-        "tls",
-        "http",
-        "https",
-        "zlib",
-        "process",
-        "tty",
-        "readline",
-        // Node.js module pattern
-        "node:process",
-        "node:tty",
-        "node:readline",
-        // Prisma client - keep it external to avoid bundling issues
-        "@prisma/client",
-        ".prisma/client",
-        ".prisma/client/index-browser",
-      ],
+      // This is a Node CLI: bundle local modules and leave installed packages
+      // and Node built-ins to Node's resolver.
+      external: (id) =>
+        id.startsWith("node:") ||
+        builtinModules.includes(id) ||
+        (!id.startsWith(".") && !id.startsWith("/") && !id.startsWith("@/")),
       output: {
         banner: "#!/usr/bin/env node",
       },
