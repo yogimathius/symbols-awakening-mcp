@@ -17,12 +17,13 @@ const CreateSymbolSetSchema = z.object({
   category: z.string()
     .min(1, 'Category is required')
     .max(100, 'Category must be less than 100 characters')
-    .optional(),
+    .optional()
+    .transform((value) => value ?? null),
   description: z.string()
     .min(1, 'Description is required')
     .max(2000, 'Description must be less than 2000 characters'),
-  symbols: z.array(z.string())
-    .default([]),
+  symbols: z.record(z.unknown())
+    .default({}),
 });
 
 const UpdateSymbolSetSchema = CreateSymbolSetSchema.partial().omit({ id: true });
@@ -93,7 +94,7 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
    */
   router.get('/', validateRequest({ query: QuerySymbolSetsSchema }), async (req, res) => {
     try {
-      const { limit, offset, search } = req.query as z.infer<typeof QuerySymbolSetsSchema>;
+      const { limit, offset, search } = req.query as unknown as z.infer<typeof QuerySymbolSetsSchema>;
 
       let result;
       if (search) {
@@ -109,7 +110,7 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: result.data,
         pagination: {
@@ -122,7 +123,7 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
         },
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -160,7 +161,7 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
    */
   router.get('/:id', async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       // Search for the specific symbol set
       const result = await database.searchSymbolSets(id, { limit: 1 });
@@ -180,12 +181,12 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: symbolSet,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -223,10 +224,9 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
    *                 maxLength: 2000
    *                 example: 'A collection of symbols representing wisdom'
    *               symbols:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                 example: ["infinity_symbol", "tree_of_life"]
+   *                 type: object
+   *                 additionalProperties: true
+   *                 example: {"infinity_symbol": {"role": "theme"}, "tree_of_life": {"role": "support"}}
    *     responses:
    *       201:
    *         description: Symbol set created successfully
@@ -259,12 +259,12 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
         });
       }
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         data: result.data,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -301,9 +301,8 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
    *                 type: string
    *                 maxLength: 2000
    *               symbols:
-   *                 type: array
-   *                 items:
-   *                   type: string
+   *                 type: object
+   *                 additionalProperties: true
    *     responses:
    *       200:
    *         description: Symbol set updated successfully
@@ -324,7 +323,7 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
    */
   router.put('/:id', validateRequest({ body: UpdateSymbolSetSchema }), async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const updates = req.body as z.infer<typeof UpdateSymbolSetSchema>;
 
       const result = await database.updateSymbolSet(id, updates);
@@ -337,12 +336,12 @@ export function createSymbolSetRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: result.data,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });

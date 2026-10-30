@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 
 import { DemoDatabase } from "./DemoDatabase.js";
-import type { Symbol, SymbolSet } from "@/types/Symbol.js";
 
 describe("DemoDatabase", () => {
   let database: DemoDatabase;

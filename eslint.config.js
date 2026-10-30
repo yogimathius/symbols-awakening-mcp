@@ -8,6 +8,10 @@ export default [
     files: ["src/**/*.ts"],
     languageOptions: {
       parser: tsparser,
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: "module",
@@ -52,6 +56,12 @@ export default [
     rules: {
       "no-console": "off", // Allow console in tests
       "@typescript-eslint/no-explicit-any": "off", // Allow any in test mocks
+    },
+  },
+  {
+    files: ["src/api/ApiServer.ts"],
+    rules: {
+      "no-console": "off", // The optional HTTP server writes lifecycle and error logs to stderr.
     },
   },
 ];

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- The in-memory adapter implements the asynchronous database interface. */
 import demoData from "@/data/demo-symbols.json";
 
 import type {
@@ -175,6 +176,9 @@ export class DemoDatabase implements IDatabase {
     }
 
     const current = this.symbols[index];
+    if (!current) {
+      return { success: false, error: new Error(`Symbol with ID "${id}" not found`) };
+    }
     const updated: Symbol = {
       ...current,
       ...updates,
@@ -249,6 +253,9 @@ export class DemoDatabase implements IDatabase {
     }
 
     const current = this.symbolSets[index];
+    if (!current) {
+      return { success: false, error: new Error(`Symbol set with ID "${id}" not found`) };
+    }
     const updated: SymbolSet = {
       ...current,
       ...updates,

@@ -144,7 +144,7 @@ export function createSymbolRoutes(database: IDatabase): Router {
         },
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -186,7 +186,7 @@ export function createSymbolRoutes(database: IDatabase): Router {
    */
   router.get('/:id', async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       // Search for the specific symbol
       const result = await database.searchSymbols(id, { limit: 1 });
@@ -206,12 +206,12 @@ export function createSymbolRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: symbol,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -299,12 +299,12 @@ export function createSymbolRoutes(database: IDatabase): Router {
         });
       }
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         data: result.data,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -376,7 +376,7 @@ export function createSymbolRoutes(database: IDatabase): Router {
    */
   router.put('/:id', validateRequest({ body: UpdateSymbolSchema }), async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const updates = req.body as z.infer<typeof UpdateSymbolSchema>;
 
       const result = await database.updateSymbol(id, updates);
@@ -389,12 +389,12 @@ export function createSymbolRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: result.data,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -456,12 +456,12 @@ export function createSymbolRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: `Symbol "${id}" deleted successfully${cascade ? ' with cascade cleanup' : ''}`,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -491,7 +491,7 @@ export function createSymbolRoutes(database: IDatabase): Router {
    *                     type: string
    *                   example: ["mathematical", "spiritual", "ancient"]
    */
-  router.get('/meta/categories', async (req, res) => {
+  router.get('/meta/categories', async (_req, res) => {
     try {
       const result = await database.getCategories();
 
@@ -502,13 +502,13 @@ export function createSymbolRoutes(database: IDatabase): Router {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: result.data,
         count: result.data?.length || 0,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });

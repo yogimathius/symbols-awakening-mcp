@@ -450,7 +450,8 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
       "symbols-by-category",
       new ResourceTemplate("symbols://category/{category}", { list: undefined }),
       async (uri, { category }) => {
-        const result = await database.filterByCategory(category, { limit: 20 });
+        const categoryName = Array.isArray(category) ? category[0] : category;
+        const result = await database.filterByCategory(categoryName ?? "", { limit: 20 });
 
         if (!result.success) {
           return {
@@ -459,7 +460,7 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
                 uri: uri.href,
                 text: JSON.stringify(
                   {
-                    category,
+                    category: categoryName,
                     error: "Database not available",
                     message: result.error?.message ?? "Unknown database error",
                   },
@@ -477,7 +478,7 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
               uri: uri.href,
               text: JSON.stringify(
                 {
-                  category,
+                  category: categoryName,
                   limit: 20,
                   symbols: result.data ?? [],
                 },
@@ -503,18 +504,11 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
       ({ symbol, focus }) => ({
         messages: [
           {
-            role: "system",
-            content: {
-              type: "text",
-              text:
-                "You are a symbolic ontology assistant. Use MCP tools to retrieve authoritative details before answering.",
-            },
-          },
-          {
             role: "user",
             content: {
               type: "text",
               text: [
+                "Use MCP tools to retrieve authoritative symbol details before answering.",
                 `Analyze the symbol "${symbol}".`,
                 focus ? `Focus area: ${focus}.` : "Include meaning, category, and related symbols.",
                 "Use MCP tools (search_symbols, get_symbols, filter_by_category) to gather data before responding.",
@@ -530,29 +524,20 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
       {
         theme: z.string().min(1).describe("Theme or purpose for the symbol set"),
         max_items: z
-          .number()
-          .min(3)
-          .max(20)
-          .default(8)
+          .string()
+          .optional()
           .describe("Maximum number of symbols to include"),
       },
       ({ theme, max_items }) => ({
         messages: [
           {
-            role: "system",
-            content: {
-              type: "text",
-              text:
-                "You are curating symbol sets using the MCP tools and database resources. Prefer existing symbols.",
-            },
-          },
-          {
             role: "user",
             content: {
               type: "text",
               text: [
+                "Curate a set using MCP tools and database resources. Prefer existing symbols.",
                 `Create a symbol set for theme: "${theme}".`,
-                `Limit to ${max_items} symbols.`,
+                `Limit to ${Math.min(20, Math.max(3, Number.parseInt(max_items ?? "8", 10) || 8))} symbols.`,
                 "Use MCP tools to find candidate symbols and propose a brief rationale for each.",
               ].join("\n"),
             },
@@ -617,10 +602,6 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
       );
     }
 
-    // Critical: Set up stdio streams for MCP protocol
-    process.stdin.setEncoding("utf8");
-    process.stdout.setEncoding("utf8");
-
     // Ensure stdin is in the correct mode for MCP
     if (process.stdin.setRawMode) {
       process.stdin.setRawMode(false);
@@ -652,7 +633,7 @@ async function startMcpServer(demoMode: boolean): Promise<void> {
       console.error(`✓ MCP server started successfully on stdio transport`);
       // eslint-disable-next-line no-console, no-undef
       console.error(
-        `✓ Available tools: get_symbols, get_symbol, search_symbols, filter_by_category, get_categories, get_symbol_sets, search_symbol_sets`
+        "✓ Symbol tools registered for the stdio MCP session"
       );
 
       // Keep the process alive
